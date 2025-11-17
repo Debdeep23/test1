@@ -420,7 +420,7 @@ def main():
         "T1_model_ms","speedup_model"
     ]
     with open(final_csv, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=flds)
+        w = csv.DictWriter(f, fieldnames=flds, extrasaction='ignore')
         w.writeheader()
         for r in agg:
             w.writerow(r)
