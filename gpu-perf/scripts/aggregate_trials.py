@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, csv, glob, math
+import sys, csv, glob, math, re
 
 # Usage: python3 scripts/aggregate_trials.py data/trials_*__2080ti.csv > data/runs_2080ti.csv
 
@@ -11,11 +11,16 @@ def F(x):
     try: return float(x)
     except: return 0.0
 
+def extract_iters_from_args(args):
+    """Extract --iters N from args string"""
+    m = re.search(r'--iters\s+(\d+)', args)
+    return int(m.group(1)) if m else 0
+
 files = []
 for arg in sys.argv[1:]:
     files.extend(glob.glob(arg))
 if not files:
-    print("kernel,args,regs,shmem,device_name,block_x,block_y,block_z,grid_x,grid_y,grid_z,warmup,reps,trials,mean_ms,std_ms,rows,cols,iters,block,grid_blocks")
+    print("kernel,args,regs,shmem,device_name,block_x,block_y,block_z,grid_x,grid_y,grid_z,warmup,reps,trials,mean_ms,std_ms,N,rows,cols,iters,block,grid_blocks")
     sys.exit(0)
 
 # Group by stable shape/size identity (no free-form args)
@@ -41,11 +46,14 @@ for path in files:
             if t <= 0:  # skip broken lines
                 continue
             groups.setdefault(k, []).append(t)
-            # keep a representative row’s metadata
+            # keep a representative row's metadata
             if k not in meta:
                 # normalize some fields
                 r["block"] = str(max(1, I(r.get("block_x"))*I(r.get("block_y"))*I(r.get("block_z"))))
                 r["grid_blocks"] = str(max(1, I(r.get("grid_x"))*I(r.get("grid_y"))*I(r.get("grid_z"))))
+                # Extract iters from args if not already present
+                if not r.get("iters") or r["iters"] == "":
+                    r["iters"] = str(extract_iters_from_args(r.get("args", "")))
                 meta[k] = r
 
 # Output
@@ -53,7 +61,7 @@ out_fields = [
     "kernel","args","regs","shmem","device_name",
     "block_x","block_y","block_z","grid_x","grid_y","grid_z",
     "warmup","reps","trials","mean_ms","std_ms",
-    "N","rows","cols","block","grid_blocks"
+    "N","rows","cols","iters","block","grid_blocks"
 ]
 w = csv.DictWriter(sys.stdout, fieldnames=out_fields)
 w.writeheader()

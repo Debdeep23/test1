@@ -136,7 +136,7 @@ echo "  - data/trials_*__4070.csv (16 files)"
 echo "  - data/runs_4070.csv"
 echo "  - data/runs_4070_with_counts.csv"
 echo "  - data/runs_4070_enriched.csv"
-echo "  - data/runs_4070_final.csv"
+echo "  - data/runs_4070_final.csv (includes iters column)"
 echo ""
 TOTAL_ROWS=$(wc -l < data/runs_4070_final.csv)
 TOTAL_COLS=$(head -1 data/runs_4070_final.csv | tr ',' '\n' | wc -l)
