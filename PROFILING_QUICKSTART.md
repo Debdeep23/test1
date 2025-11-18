@@ -5,18 +5,17 @@
 ```bash
 cd /home/user/test1/gpu-perf
 
-# Profile one kernel with nvprof (fast, basic metrics)
-scripts/profile_nvprof_2080.sh vector_add
+# Profile one kernel (auto-detects nvprof/ncu/nsys)
+scripts/profile_kernel_2080.sh vector_add
 
-# Profile one kernel with ncu (detailed, slower)
-scripts/profile_ncu_2080.sh matmul_tiled
-
-# Profile ALL kernels with nvprof (~5-10 minutes)
-scripts/profile_all_kernels_2080.sh nvprof
+# Profile ALL kernels (~5-10 minutes)
+scripts/profile_all_2080.sh
 
 # Parse and summarize results
 python3 scripts/parse_profiling_results.py data/profiling_2080
 ```
+
+**Note:** If you get "command not found" errors, see [PROFILING_SETUP.md](PROFILING_SETUP.md) to install profiling tools.
 
 ## What You Get
 
@@ -46,12 +45,26 @@ python3 scripts/parse_profiling_results.py data/profiling_2080
 | l1_cache_global_hit_rate | >50% | Cache effectiveness |
 | flop_sp_efficiency | varies | Compute throughput |
 
+## Available Scripts
+
+1. **profile_kernel_2080.sh** ⭐ RECOMMENDED
+   - Auto-detects which profiler you have (ncu/nvprof/nsys)
+   - Works with any CUDA version
+   - Provides install instructions if tools missing
+
+2. **profile_all_2080.sh** ⭐ RECOMMENDED
+   - Batch profile all 16 kernels
+   - Uses auto-detection
+
+3. **profile_nvprof_2080.sh** (if you specifically want nvprof)
+4. **profile_ncu_2080.sh** (if you specifically want ncu)
+
 ## Common Workflows
 
 ### 1. Quick Check - Is My Kernel Fast?
 ```bash
-scripts/profile_nvprof_2080.sh my_kernel
-cat data/profiling/nvprof_my_kernel_summary.txt | grep "GPU activities"
+scripts/profile_kernel_2080.sh my_kernel
+# View output in data/profiling/ directory
 ```
 
 ### 2. Find Memory Issues
