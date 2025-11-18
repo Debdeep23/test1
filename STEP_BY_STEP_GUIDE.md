@@ -83,32 +83,37 @@ ls
 
 **Expected output:**
 ```
-kernels/  scripts/  data/  calibration/  CMakeLists.txt
+kernels/  scripts/  data/  calibration/  runner/  bin/
 ```
 
 ### Step 2: Build the CUDA Runner
 
 ```bash
-# Create build directory
-mkdir -p build
-cd build
+# Create bin and data directories
+mkdir -p bin data
 
-# Configure with CMake
-cmake ..
+# Compile runner with nvcc (example for RTX 2080 Ti / Turing sm_75)
+nvcc -std=c++14 -O3 --ptxas-options=-v -lineinfo -arch=sm_75 -DTILE=32 \
+  -o bin/runner runner/main.cu
 
-# Compile
-make -j$(nproc)
-
-# Verify executables were created
-ls runner
+# Verify executable was created
+ls -lh bin/runner
 ```
 
 **Expected output:**
 ```
-runner  # Main benchmark executable
+-rwxr-xr-x 1 user user 1.1M Nov 17 21:23 bin/runner
 ```
 
-**Note:** If you get errors, see [Troubleshooting](#troubleshooting).
+**Note:**
+- For different GPUs, change the `-arch` flag:
+  - **Pascal (GTX 1080 Ti):** `-arch=sm_61`
+  - **Volta (Titan V):** `-arch=sm_70`
+  - **Turing (RTX 2080 Ti):** `-arch=sm_75`
+  - **Ampere (RTX 3090):** `-arch=sm_86`
+  - **Ada Lovelace (RTX 4070):** `-arch=sm_89`
+  - **Hopper (H100):** `-arch=sm_90`
+- If you get errors, see [Troubleshooting](#troubleshooting).
 
 ### Step 3: Run GPU Calibration Benchmarks
 
@@ -443,12 +448,17 @@ sudo apt-get install cuda-cublas-dev-12-x  # Replace 12-x with your version
 ```
 
 #### "unsupported GPU architecture"
-**Problem:** GPU too old (compute capability < 6.0)
+**Problem:** GPU too old (compute capability < 6.0) or architecture mismatch
 
 **Solution:**
-Update CMakeLists.txt to include your architecture:
-```cmake
-set(CMAKE_CUDA_ARCHITECTURES 60 61 70 75 80 86 89)  # Add your sm_XX
+Update the `-arch` flag in your nvcc build command to match your GPU:
+```bash
+# Find your GPU's compute capability
+nvidia-smi --query-gpu=compute_cap --format=csv
+
+# Use the appropriate architecture flag
+nvcc -std=c++14 -O3 -arch=sm_XX -DTILE=32 -o bin/runner runner/main.cu
+# Replace XX with your compute capability (e.g., sm_60, sm_75, sm_86, etc.)
 ```
 
 ### Runtime Errors
@@ -476,7 +486,7 @@ ls data/trials_*
 ./scripts/gen_trials_2080ti.sh
 
 # Verify runner built correctly
-./build/runner --help
+./bin/runner --help
 ```
 
 #### "Thermal throttling detected"
@@ -524,7 +534,7 @@ cat ../data/props_2080ti.out
 
 ```bash
 # Test one kernel manually
-./build/runner vector_add --rows 1048576 --cols 1 --block 256 --warmup 10 --reps 50
+./bin/runner vector_add --N 1048576 --block 256 --warmup 10 --reps 50
 
 # Output: CSV line with timing data
 ```
@@ -583,7 +593,7 @@ df['compute_efficiency'] = df['achieved_compute_gflops'] / df['calibrated_comput
 ## Summary Checklist
 
 - [ ] CUDA Toolkit installed and in PATH
-- [ ] Project built successfully (`make` in build/)
+- [ ] Runner compiled successfully (`nvcc` → `bin/runner`)
 - [ ] GPU calibration completed (3 `.out` files in `data/`)
 - [ ] Trial data generated (16 `trials_*.csv` files in `data/`)
 - [ ] GPU specs added to `build_final_dataset.py`
