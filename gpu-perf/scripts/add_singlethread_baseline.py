@@ -12,9 +12,10 @@ peak_gbps_1   = peak_gbps   / WARP if peak_gbps>0   else 0.0
 
 rd = csv.DictReader(open(RUNS_IN))
 
-# Remove useless columns: args, device_name, block_x/y/z, grid_x/y/z, warmup, reps, trials, iters, conv_padding, gpu_cc_minor
+# Remove useless columns: args, device_name, block_x/y/z, grid_x/y/z, warmup, trials, conv_padding, gpu_cc_minor
+# KEEP reps and iters as they are important iteration metadata
 exclude_cols = {"args", "device_name", "block_x", "block_y", "block_z", "grid_x", "grid_y", "grid_z",
-                "warmup", "reps", "trials", "iters", "conv_padding", "gpu_cc_minor"}
+                "warmup", "trials", "conv_padding", "gpu_cc_minor"}
 fields = [f for f in rd.fieldnames if f not in exclude_cols] + ["T1_model_ms","speedup_model"]
 w  = csv.DictWriter(open(RUNS_OUT,"w",newline=""), fieldnames=fields, extrasaction='ignore')
 w.writeheader()

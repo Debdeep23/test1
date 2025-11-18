@@ -307,7 +307,7 @@ def main():
     # 3) write final CSV with updated schema (matches current runs_4070_final.csv)
     fieldnames = [
         "kernel","regs","shmem","mean_ms","std_ms",
-        "N","rows","cols","iters",
+        "N","rows","cols","reps","iters",
         "block","grid_blocks","size_kind",
         "FLOPs","BYTES","arithmetic_intensity","working_set_bytes","shared_bytes","mem_pattern",
         "gpu_device_name","gpu_cc_major","gpu_sms",
