@@ -61,11 +61,20 @@ def kv_from_file(path):
     with open(path) as f:
         for ln in f:
             ln = ln.strip()
-            # Handle both "key=value" per line and "major=7 minor=5" on one line
-            for token in ln.split():
-                if '=' in token:
+            if not ln:
+                continue
+            # Check if line has multiple key=value pairs (e.g., "major=7 minor=5")
+            # by looking for space-separated tokens that all contain '='
+            tokens = ln.split()
+            if all('=' in token for token in tokens):
+                # Multiple key=value pairs on one line
+                for token in tokens:
                     k, v = token.split('=', 1)
                     kv[k] = v
+            elif '=' in ln:
+                # Single key=value pair (may have spaces in value)
+                k, v = ln.split('=', 1)
+                kv[k.strip()] = v.strip()
     return kv
 
 # ---------- size + shape sanitation ----------
