@@ -281,17 +281,16 @@ grep "vector_add" data/runs_4070_final.csv | head -3
 ### Final CSV Structure
 
 **~70 rows** (header + kernels × sizes)
-**~37 columns** organized as:
+**32 columns** organized as:
 
-1. **Kernel Info** (3 cols): kernel name, register usage, shared memory
+1. **Kernel Info** (3 cols): kernel, regs, shmem
 2. **Launch Config** (2 cols): block, grid_blocks
 3. **Performance** (2 cols): mean_ms, std_ms
-4. **Problem Size** (3 cols): N, rows, cols
-5. **Kernel Metrics** (6 cols): FLOPs, BYTES, arithmetic_intensity, etc.
-6. **GPU Hardware** (9 cols): SM count, compute capability, registers, etc.
-7. **GPU Performance** (6 cols): calibrated bandwidth & compute
-8. **Achieved Perf** (4 cols): achieved bandwidth & compute
-9. **Models** (2 cols): T1_model_ms, speedup_model
+4. **Problem Size** (4 cols): N, rows, cols, size_kind
+5. **Kernel Metrics** (6 cols): FLOPs, BYTES, arithmetic_intensity, working_set_bytes, shared_bytes, mem_pattern
+6. **GPU Hardware** (9 cols): gpu_device_name, gpu_cc_major, gpu_sms, gpu_warp_size, gpu_max_threads_per_sm, gpu_max_blocks_per_sm, gpu_regs_per_sm, gpu_shared_mem_per_sm, gpu_l2_bytes
+7. **GPU Performance** (4 cols): calibrated_mem_bandwidth_gbps, calibrated_compute_gflops, achieved_bandwidth_gbps, achieved_compute_gflops
+8. **Models** (2 cols): T1_model_ms, speedup_model
 
 ---
 

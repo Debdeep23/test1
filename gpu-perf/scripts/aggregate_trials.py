@@ -53,7 +53,7 @@ out_fields = [
     "kernel","args","regs","shmem","device_name",
     "block_x","block_y","block_z","grid_x","grid_y","grid_z",
     "warmup","reps","trials","mean_ms","std_ms",
-    "rows","cols","block","grid_blocks"
+    "N","rows","cols","block","grid_blocks"
 ]
 w = csv.DictWriter(sys.stdout, fieldnames=out_fields)
 w.writeheader()
