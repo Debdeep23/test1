@@ -88,7 +88,9 @@ def pick_size_family(row):
 
     # emit simplified family (just N, rows, cols)
     out = {"N":"", "rows":"", "cols":""}
-    if rows > 0 and cols > 0:
+    # Only use rows/cols for true 2D cases (cols > 1)
+    # For 1D cases (cols <= 1), use N instead
+    if rows > 0 and cols > 1:
         out["rows"], out["cols"] = str(rows), str(cols)
     elif N > 0:
         out["N"] = str(N)
@@ -341,7 +343,7 @@ def main():
         # Determine size_kind
         rows = I(r.get("rows"))
         cols = I(r.get("cols"))
-        if rows > 0 and cols > 0 and cols != 1:
+        if rows > 0 and cols > 1:
             r["size_kind"] = "rows_cols"
         else:
             r["size_kind"] = "N"
