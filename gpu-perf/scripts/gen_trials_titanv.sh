@@ -4,22 +4,25 @@ set -euo pipefail
 echo "=== wipe old TITAN V trials ==="
 rm -f data/trials_*__titanv.csv
 
-echo "=== build runner for sm_70 (Volta / TITAN V) ==="
+echo "=== build runner for TITAN V (Volta 7.0 / using sm_75 for CUDA 13+) ==="
 mkdir -p bin data
 
-# Try different architecture specifications for Volta
-# Some CUDA versions use compute_70 instead of sm_70
-if nvcc -std=c++14 -O3 --ptxas-options=-v -lineinfo -arch=sm_70 -DTILE=32 \
+# CUDA 13.0+ dropped support for sm_70 (Volta)
+# We use sm_75 (Turing) which is forward-compatible with Volta hardware
+# The TITAN V (compute 7.0) can run code compiled for compute 7.5
+echo "Note: Using sm_75 (Turing) for CUDA 13.0+ compatibility with Volta hardware"
+
+if nvcc -std=c++14 -O3 --ptxas-options=-v -lineinfo -arch=sm_75 -DTILE=32 \
   -o bin/runner runner/main.cu 2> data/ptxas_titanv.log; then
-  echo "✓ Compiled with sm_70"
-elif nvcc -std=c++14 -O3 --ptxas-options=-v -lineinfo -arch=compute_70 -DTILE=32 \
+  echo "✓ Compiled with sm_75 (Turing - forward compatible with Volta)"
+elif nvcc -std=c++14 -O3 --ptxas-options=-v -lineinfo -arch=sm_70 -DTILE=32 \
   -o bin/runner runner/main.cu 2> data/ptxas_titanv.log; then
-  echo "✓ Compiled with compute_70"
-elif nvcc -std=c++14 -O3 --ptxas-options=-v -lineinfo -gencode arch=compute_70,code=sm_70 -DTILE=32 \
+  echo "✓ Compiled with sm_70 (native Volta)"
+elif nvcc -std=c++14 -O3 --ptxas-options=-v -lineinfo -arch=compute_75 -DTILE=32 \
   -o bin/runner runner/main.cu 2> data/ptxas_titanv.log; then
-  echo "✓ Compiled with gencode arch=compute_70,code=sm_70"
+  echo "✓ Compiled with compute_75"
 else
-  echo "ERROR: Failed to compile runner for Volta architecture"
+  echo "ERROR: Failed to compile runner"
   echo "See data/ptxas_titanv.log for details"
   cat data/ptxas_titanv.log
   exit 1
