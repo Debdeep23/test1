@@ -58,14 +58,14 @@ def clean_int_field(s):
 
 def kv_from_file(path):
     kv = {}
-    pat = re.compile(r'^([A-Za-z0-9_]+)=(.*)$')
     with open(path) as f:
         for ln in f:
             ln = ln.strip()
-            m = pat.match(ln)
-            if not m: continue
-            k, v = m.group(1), m.group(2)
-            kv[k] = v
+            # Handle both "key=value" per line and "major=7 minor=5" on one line
+            for token in ln.split():
+                if '=' in token:
+                    k, v = token.split('=', 1)
+                    kv[k] = v
     return kv
 
 # ---------- size + shape sanitation ----------
@@ -122,13 +122,18 @@ def static_counts(row):
     if matN == 0 and rows > 0 and (cols == 0 or rows == cols):
         matN = rows
 
-    FLOPs = 0; BYTES = 0; SH = 0; WS = 0; pat = "coalesced"
+    FLOPs = 0; BYTES = 0; WS = 0; pat = "coalesced"
 
-    if k in ("vector_add","vector_add_divergent"):
+    if k == "vector_add":
         FLOPs = N
         BYTES = 3*N*4
         WS    = BYTES
         pat   = "coalesced"
+    elif k == "vector_add_divergent":
+        FLOPs = N
+        BYTES = 3*N*4
+        WS    = BYTES
+        pat   = "divergent"
     elif k == "saxpy":
         FLOPs = 2*N
         BYTES = 3*N*4
@@ -146,7 +151,6 @@ def static_counts(row):
     elif k == "shared_transpose":
         elems = rows*cols
         BYTES = 2*elems*4
-        SH    = elems*4
         WS    = BYTES
         pat   = "transpose_tiled"
     elif k == "matmul_naive":
@@ -157,21 +161,18 @@ def static_counts(row):
     elif k == "matmul_tiled":
         FLOPs = 2*matN*matN*matN
         BYTES = 4*(matN*matN*3)
-        SH    = 2*matN*matN*4
         WS    = BYTES
         pat   = "matmul_tiled"
     elif k == "reduce_sum":
         FLOPs   = max(0, N-1)
         partial = max(1, (N // (2*blk))) * 4
         BYTES   = N*4 + partial + 4
-        SH      = blk*4
         WS      = N*4
         pat     = "shared_reduction"
     elif k == "dot_product":
         FLOPs   = 2*N
         partial = max(1, (N // (2*blk))) * 4
         BYTES   = 2*N*4 + partial + 4
-        SH      = blk*4
         WS      = 2*N*4
         pat     = "shared_reduction"
     elif k == "histogram":
@@ -199,8 +200,7 @@ def static_counts(row):
         WS    = elems * 4
         pat   = "stencil_7x7"
     elif k == "shared_bank_conflict":
-        SH  = max(1, blk)*4
-        WS  = SH
+        WS  = 4096  # shared memory only kernel
         pat = "smem_bank_conflict"
     else:
         # fallback: try not to emit zeros if we can infer an element count
@@ -225,7 +225,7 @@ def static_counts(row):
     elif k == "histogram":
         atomic_ops = N
 
-    return FLOPs, BYTES, SH, WS, AI, pat, has_divergence, atomic_ops
+    return FLOPs, BYTES, WS, AI, pat, has_divergence, atomic_ops
 
 # ---------- T1 + speedup ----------
 def add_T1_and_speedup(row, peak_gflops, peak_gbps, warp_size):
@@ -333,10 +333,10 @@ def main():
 
     # 2) per-kernel static counts + size_kind
     for r in agg:
-        FLOPs,BYTES,SH,WS,AI,pat,has_divergence,atomic_ops = static_counts(r)
+        FLOPs,BYTES,WS,AI,pat,has_divergence,atomic_ops = static_counts(r)
         r["FLOPs"] = str(FLOPs)
         r["BYTES"] = str(BYTES)
-        r["shared_bytes"] = str(SH)
+        r["shared_bytes"] = r.get("shmem", "0")  # Use actual shmem from kernel launch
         r["working_set_bytes"] = str(WS)
         r["arithmetic_intensity"] = f"{AI:.6f}"
         r["mem_pattern"] = pat
@@ -402,7 +402,7 @@ def main():
         # Performance results
         "mean_ms","std_ms",
         # Problem sizes
-        "N","rows","cols","H","W","matN","size_kind",
+        "N","rows","cols","H","W","matN","iters","size_kind",
         # Kernel metrics (11 total)
         "FLOPs","BYTES","shared_bytes","working_set_bytes",
         "arithmetic_intensity","mem_pattern",
