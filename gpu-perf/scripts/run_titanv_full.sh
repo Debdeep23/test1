@@ -18,6 +18,9 @@ nvidia-smi --query-gpu=index,name,memory.total,memory.used,utilization.gpu --for
 echo ""
 echo "=== 0) Clean old TITAN V data ==="
 rm -f data/trials_*__titanv.csv data/runs_titanv*.csv
+rm -f data/device_calibration_titanv.json
+rm -f data/props_titanv.out data/stream_like_titanv.out data/gemm_cublas_titanv.out
+rm -f data/ptxas_titanv.log
 
 echo "=== 1) Build calibration tools ==="
 mkdir -p bin data
