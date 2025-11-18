@@ -42,34 +42,32 @@ for kernel in "${KERNELS[@]}"; do
 
     # Use appropriate args for each kernel type
     # Continue on errors - don't let one failure stop all profiling
-    set +e
     case $kernel in
         atomic_hotspot)
-            "$SCRIPT_DIR/profile_4070.sh" "$kernel" --N 1048576 --iters 100 --warmup 1 --reps 1
+            "$SCRIPT_DIR/profile_4070.sh" "$kernel" --N 1048576 --iters 100 --warmup 1 --reps 1 || true
             RESULT=$?
             ;;
         shared_bank_conflict)
-            "$SCRIPT_DIR/profile_4070.sh" "$kernel" --warmup 1 --reps 1
+            "$SCRIPT_DIR/profile_4070.sh" "$kernel" --warmup 1 --reps 1 || true
             RESULT=$?
             ;;
         matmul_* | *transpose | conv2d_*)
             # Reduce size for profiling to save time
-            "$SCRIPT_DIR/profile_4070.sh" "$kernel" --rows 512 --cols 512 --warmup 1 --reps 1
+            "$SCRIPT_DIR/profile_4070.sh" "$kernel" --rows 512 --cols 512 --warmup 1 --reps 1 || true
             RESULT=$?
             ;;
         *)
-            "$SCRIPT_DIR/profile_4070.sh" "$kernel" --N 1048576 --warmup 1 --reps 1
+            "$SCRIPT_DIR/profile_4070.sh" "$kernel" --N 1048576 --warmup 1 --reps 1 || true
             RESULT=$?
             ;;
     esac
-    set -e
 
     if [ $RESULT -eq 0 ]; then
         echo ">>> SUCCESS: $kernel"
-        ((SUCCESS_COUNT++))
+        SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
     else
         echo ">>> FAILED: $kernel" >&2
-        ((FAIL_COUNT++))
+        FAIL_COUNT=$((FAIL_COUNT + 1))
     fi
 
     echo "---"
