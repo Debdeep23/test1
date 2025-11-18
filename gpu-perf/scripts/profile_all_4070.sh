@@ -2,8 +2,6 @@
 # Profile all kernels on RTX 4070 using ncu
 # Run this on cuda5
 
-set -e
-
 SCRIPT_DIR=$(dirname "$0")
 
 # List of all kernels
@@ -43,23 +41,30 @@ for kernel in "${KERNELS[@]}"; do
     echo ""
 
     # Use appropriate args for each kernel type
+    # Continue on errors - don't let one failure stop all profiling
+    set +e
     case $kernel in
         atomic_hotspot)
             "$SCRIPT_DIR/profile_4070.sh" "$kernel" --N 1048576 --iters 100 --warmup 1 --reps 1
+            RESULT=$?
             ;;
         shared_bank_conflict)
             "$SCRIPT_DIR/profile_4070.sh" "$kernel" --warmup 1 --reps 1
+            RESULT=$?
             ;;
         matmul_* | *transpose | conv2d_*)
             # Reduce size for profiling to save time
             "$SCRIPT_DIR/profile_4070.sh" "$kernel" --rows 512 --cols 512 --warmup 1 --reps 1
+            RESULT=$?
             ;;
         *)
             "$SCRIPT_DIR/profile_4070.sh" "$kernel" --N 1048576 --warmup 1 --reps 1
+            RESULT=$?
             ;;
     esac
+    set -e
 
-    if [ $? -eq 0 ]; then
+    if [ $RESULT -eq 0 ]; then
         echo ">>> SUCCESS: $kernel"
         ((SUCCESS_COUNT++))
     else
