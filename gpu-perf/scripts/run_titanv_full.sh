@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# TITAN V Benchmarking Script
+#
+# IMPORTANT: TITAN V requires CUDA 11.x or older (sm_70 support)
+# CUDA 13.0+ dropped Volta support
+#
+# Before running:
+#   module load cuda-11.4
+#   nvcc --version  # Verify CUDA 11.4 is loaded
+#
 # Allow GPU selection via environment variable
 # Usage: CUDA_VISIBLE_DEVICES=0 ./scripts/run_titanv_full.sh
 # or:    GPU_ID=1 ./scripts/run_titanv_full.sh
@@ -29,14 +38,14 @@ cd calibration
 # Force rebuild by removing old binaries
 rm -f ../bin/props_titanv ../bin/stream_like_titanv ../bin/gemm_cublas_titanv
 
-echo "Building props (using -arch=native to auto-detect GPU)..."
-nvcc -arch=native -o ../bin/props_titanv props.cu
+echo "Building props (sm_70 for Volta TITAN V)..."
+nvcc -arch=sm_70 -o ../bin/props_titanv props.cu
 
-echo "Building stream_like (using -arch=native to auto-detect GPU)..."
-nvcc -arch=native -o ../bin/stream_like_titanv stream_like.cu
+echo "Building stream_like (sm_70 for Volta TITAN V)..."
+nvcc -arch=sm_70 -o ../bin/stream_like_titanv stream_like.cu
 
-echo "Building gemm_cublas (using -arch=native to auto-detect GPU)..."
-nvcc -arch=native -o ../bin/gemm_cublas_titanv gemm_cublas.cu -lcublas
+echo "Building gemm_cublas (sm_70 for Volta TITAN V)..."
+nvcc -arch=sm_70 -o ../bin/gemm_cublas_titanv gemm_cublas.cu -lcublas
 
 cd ..
 
