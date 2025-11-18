@@ -66,14 +66,22 @@ def parse_ncu_csv(csv_file):
             reader = csv.DictReader(f)
             for row in reader:
                 for key, value in row.items():
+                    # Handle None values
+                    if key is None or value is None:
+                        continue
+
                     # Clean up metric names
-                    clean_key = key.strip('"').strip()
-                    clean_value = value.strip('"').strip()
+                    clean_key = key.strip('"').strip() if key else ""
+                    clean_value = value.strip('"').strip() if value else ""
+
+                    # Skip empty keys
+                    if not clean_key:
+                        continue
 
                     # Try to convert to float
                     try:
                         clean_value = float(clean_value)
-                    except ValueError:
+                    except (ValueError, TypeError):
                         pass
 
                     metrics[clean_key] = clean_value
@@ -111,10 +119,33 @@ def extract_key_metrics(metrics, tool='nvprof'):
         }
     else:  # ncu
         important = {
+            # Duration
             'gpu__time_duration.sum': 'duration_ns',
+            # Throughput
             'sm__throughput.avg.pct_of_peak_sustained_elapsed': 'sm_throughput_pct',
             'dram__throughput.avg.pct_of_peak_sustained_elapsed': 'dram_throughput_pct',
+            'l1tex__throughput.avg.pct_of_peak_sustained_elapsed': 'l1_throughput_pct',
+            'lts__throughput.avg.pct_of_peak_sustained_elapsed': 'l2_throughput_pct',
+            'gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed': 'compute_mem_throughput_pct',
+            # Warp activity
             'sm__warps_active.avg.pct_of_peak_sustained_active': 'warp_activity_pct',
+            # Stalls
+            'smsp__average_warps_issue_stalled_short_scoreboard_per_issue_active.pct': 'stall_short_scoreboard_pct',
+            'smsp__average_warps_issue_stalled_long_scoreboard_per_issue_active.pct': 'stall_long_scoreboard_pct',
+            'smsp__average_warps_issue_stalled_drain_per_issue_active.pct': 'stall_drain_pct',
+            # Memory operations
+            'l1tex__t_bytes_pipe_lsu_mem_global_op_ld.sum.per_second': 'global_load_bytes_per_sec',
+            'l1tex__t_bytes_pipe_lsu_mem_global_op_st.sum.per_second': 'global_store_bytes_per_sec',
+            # FP operations
+            'smsp__sass_thread_inst_executed_op_fadd_pred_on.sum': 'fadd_ops',
+            'smsp__sass_thread_inst_executed_op_fmul_pred_on.sum': 'fmul_ops',
+            'smsp__sass_thread_inst_executed_op_ffma_pred_on.sum': 'ffma_ops',
+            'sm__pipe_fma_cycles_active.avg.pct_of_peak_sustained_active': 'fma_pipe_active_pct',
+            # Shared memory
+            'l1tex__data_pipe_lsu_wavefronts_mem_shared_op_ld.sum': 'shared_load_wavefronts',
+            'l1tex__data_pipe_lsu_wavefronts_mem_shared_op_st.sum': 'shared_store_wavefronts',
+            # Instructions
+            'smsp__inst_executed.avg.per_cycle_active': 'inst_per_cycle',
         }
 
     # Extract available metrics
@@ -149,19 +180,31 @@ def analyze_profiling_dir(profiling_dir, tool='nvprof'):
 
         print(f"  Parsing {kernel}...")
 
-        # Parse metrics
-        if tool == 'nvprof':
-            metrics = parse_nvprof_metrics(metric_file)
-        else:
-            metrics = parse_ncu_csv(metric_file)
+        try:
+            # Parse metrics
+            if tool == 'nvprof':
+                metrics = parse_nvprof_metrics(metric_file)
+            else:
+                metrics = parse_ncu_csv(metric_file)
 
-        # Extract key metrics
-        key_metrics = extract_key_metrics(metrics, tool)
+            # Extract key metrics
+            key_metrics = extract_key_metrics(metrics, tool)
 
-        results[kernel] = {
-            'all_metrics': metrics,
-            'key_metrics': key_metrics
-        }
+            results[kernel] = {
+                'all_metrics': metrics,
+                'key_metrics': key_metrics
+            }
+
+            # Debug: print how many metrics were found
+            if metrics:
+                print(f"    Found {len(metrics)} total metrics, {len(key_metrics)} key metrics")
+            else:
+                print(f"    Warning: No metrics found in file")
+
+        except Exception as e:
+            print(f"    ERROR: Failed to parse {kernel}: {e}", file=sys.stderr)
+            # Continue with next file instead of failing completely
+            continue
 
     return results
 
@@ -247,7 +290,15 @@ def main():
 
     print(f"Analyzing profiling results in: {profiling_dir}")
     print(f"Using tool: {tool}")
-    print()
+
+    # Helpful note for ncu users
+    if tool == 'ncu':
+        print()
+        print("NOTE: For more detailed ncu metrics, use parse_ncu_text.py on *_details.txt files:")
+        print(f"  python3 scripts/parse_ncu_text.py {profiling_dir}/ncu_*_details.txt")
+        print()
+    else:
+        print()
 
     # Analyze
     results = analyze_profiling_dir(profiling_dir, tool)
