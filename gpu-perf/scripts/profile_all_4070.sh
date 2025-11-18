@@ -1,6 +1,6 @@
 #!/bin/bash
-# Profile all kernels using nsys
-# Alternative to ncu when ncu has compatibility issues
+# Profile all kernels on RTX 4070 using ncu
+# Run this on cuda5
 
 set -e
 
@@ -28,12 +28,15 @@ KERNELS=(
 )
 
 echo "============================================"
-echo "Profiling all kernels with nsys"
+echo "Profiling all kernels on RTX 4070"
 echo "Total kernels: ${#KERNELS[@]}"
 echo "============================================"
 echo ""
 
 # Profile each kernel
+SUCCESS_COUNT=0
+FAIL_COUNT=0
+
 for kernel in "${KERNELS[@]}"; do
     echo ""
     echo ">>> Profiling: $kernel"
@@ -42,41 +45,41 @@ for kernel in "${KERNELS[@]}"; do
     # Use appropriate args for each kernel type
     case $kernel in
         atomic_hotspot)
-            # atomic_hotspot needs --iters parameter
-            "$SCRIPT_DIR/profile_nsys_2080.sh" "$kernel" --N 1048576 --iters 100 --warmup 5 --reps 10
+            "$SCRIPT_DIR/profile_4070.sh" "$kernel" --N 1048576 --iters 100 --warmup 1 --reps 1
             ;;
         shared_bank_conflict)
-            # shared_bank_conflict has fixed size
-            "$SCRIPT_DIR/profile_nsys_2080.sh" "$kernel" --warmup 5 --reps 10
+            "$SCRIPT_DIR/profile_4070.sh" "$kernel" --warmup 1 --reps 1
             ;;
         matmul_* | *transpose | conv2d_*)
-            # Matrix/image kernels use rows/cols
-            "$SCRIPT_DIR/profile_nsys_2080.sh" "$kernel" --rows 1024 --cols 1024 --warmup 5 --reps 10
+            # Reduce size for profiling to save time
+            "$SCRIPT_DIR/profile_4070.sh" "$kernel" --rows 512 --cols 512 --warmup 1 --reps 1
             ;;
         *)
-            # Vector kernels use N
-            "$SCRIPT_DIR/profile_nsys_2080.sh" "$kernel" --N 1048576 --warmup 5 --reps 10
+            "$SCRIPT_DIR/profile_4070.sh" "$kernel" --N 1048576 --warmup 1 --reps 1
             ;;
     esac
 
     if [ $? -eq 0 ]; then
         echo ">>> SUCCESS: $kernel"
+        ((SUCCESS_COUNT++))
     else
         echo ">>> FAILED: $kernel" >&2
+        ((FAIL_COUNT++))
     fi
 
-    echo ""
     echo "---"
 done
 
 echo ""
 echo "============================================"
-echo "All kernels profiled!"
+echo "Profiling Complete!"
 echo "============================================"
+echo "Success: $SUCCESS_COUNT"
+echo "Failed:  $FAIL_COUNT"
 echo ""
-echo "Parse all results:"
-echo "  python3 scripts/parse_nsys_results.py data/profiling_2080"
+echo "View reports:"
+echo "  ls data/profiling_4070/"
 echo ""
-echo "View individual reports in GUI:"
-echo "  nsys-ui data/profiling_2080/nsys_<kernel>_report.nsys-rep"
+echo "Open in ncu-ui:"
+echo "  ncu-ui data/profiling_4070/ncu_<kernel>.ncu-rep"
 echo "============================================"
