@@ -23,14 +23,17 @@ echo "=== 1) Build calibration tools ==="
 mkdir -p bin data
 cd calibration
 
-echo "Building props..."
-nvcc -arch=sm_75 -o ../bin/props_titanv props.cu
+# Force rebuild by removing old binaries
+rm -f ../bin/props_titanv ../bin/stream_like_titanv ../bin/gemm_cublas_titanv
 
-echo "Building stream_like..."
-nvcc -arch=sm_75 -o ../bin/stream_like_titanv stream_like.cu
+echo "Building props (no -arch flag, using JIT compilation)..."
+nvcc -o ../bin/props_titanv props.cu
 
-echo "Building gemm_cublas..."
-nvcc -arch=sm_75 -o ../bin/gemm_cublas_titanv gemm_cublas.cu -lcublas
+echo "Building stream_like (no -arch flag, using JIT compilation)..."
+nvcc -o ../bin/stream_like_titanv stream_like.cu
+
+echo "Building gemm_cublas (no -arch flag, using JIT compilation)..."
+nvcc -o ../bin/gemm_cublas_titanv gemm_cublas.cu -lcublas
 
 cd ..
 
