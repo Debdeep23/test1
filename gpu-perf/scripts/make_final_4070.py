@@ -2,7 +2,7 @@
 import csv, glob, json, math, os, re, statistics as stat
 
 DATA = "data"
-TAG = "2080ti"   # change if you run on another card
+TAG = "4070"   # RTX 4070
 
 # ---------- helpers ----------
 def F(x):
@@ -237,9 +237,9 @@ def main():
     agg = aggregate_trials()
 
     # 2) read GPU files
-    props_txt  = open(os.path.join(DATA,"props_2080ti.out")).read()
-    stream_txt = open(os.path.join(DATA,"stream_like_2080ti.out")).read()
-    gemm_txt   = open(os.path.join(DATA,"gemm_cublas_2080ti.out")).read()
+    props_txt  = open(os.path.join(DATA,"props_4070.out")).read()
+    stream_txt = open(os.path.join(DATA,"stream_like_4070.out")).read()
+    gemm_txt   = open(os.path.join(DATA,"gemm_cublas_4070.out")).read()
 
     P = parse_props_text(props_txt)
     BW_sus, FLOP_sus = sustained_from_files(stream_txt, gemm_txt)
@@ -272,7 +272,7 @@ def main():
         "T1_model_ms","speedup_model"
     ]
 
-    out_path = os.path.join(DATA,"runs_2080ti_final.csv")
+    out_path = os.path.join(DATA,"runs_4070_final.csv")
     with open(out_path, "w", newline='') as g:
         w = csv.DictWriter(g, fieldnames=fieldnames)
         w.writeheader()
@@ -322,4 +322,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

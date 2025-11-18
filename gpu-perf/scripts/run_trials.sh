@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # scripts/run_trials.sh
-# Usage: scripts/run_trials.sh <kernel> "<argstr>" <regs> <shmem> <trials>
+# Usage: scripts/run_trials.sh <kernel> "<argstr>" <regs> <shmem> <trials> [device_tag]
 set -euo pipefail
 
 KERNEL="$1"
@@ -8,11 +8,10 @@ ARGSTR="$2"
 REGS="${3:-0}"
 SHMEM="${4:-0}"
 TRIALS="${5:-10}"
+TAG="${6:-2080ti}"  # default to 2080ti for backward compatibility
 
 mkdir -p data
 
-# Hard-pin tag to 2080 Ti to avoid “4070” suffixes on cuda2
-TAG="2080ti"
 DEV_NAME="$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1 | sed 's/^ *//;s/ *$//')"
 
 OUT="data/trials_${KERNEL}__${TAG}.csv"
