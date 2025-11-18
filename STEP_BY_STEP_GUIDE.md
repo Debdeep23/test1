@@ -83,32 +83,40 @@ ls
 
 **Expected output:**
 ```
-kernels/  scripts/  data/  calibration/  CMakeLists.txt
+kernels/  scripts/  data/  calibration/  runner/
 ```
 
 ### Step 2: Build the CUDA Runner
 
+The runner is built using `nvcc` directly (no CMake or Makefile).
+
+**For RTX 2080 Ti (Turing, sm_75):**
 ```bash
-# Create build directory
-mkdir -p build
-cd build
+# Create output directories
+mkdir -p bin data
 
-# Configure with CMake
-cmake ..
+# Compile runner with nvcc
+nvcc -std=c++14 -O3 --ptxas-options=-v -lineinfo -arch=sm_75 -DTILE=32 \
+  -o bin/runner runner/main.cu 2> data/ptxas_2080ti.log
 
-# Compile
-make -j$(nproc)
-
-# Verify executables were created
-ls runner
+# Verify executable was created
+ls -lh bin/runner
 ```
 
 **Expected output:**
 ```
-runner  # Main benchmark executable
+-rwxr-xr-x 1 user user 1.2M Nov 18 12:00 bin/runner
 ```
 
-**Note:** If you get errors, see [Troubleshooting](#troubleshooting).
+**For other architectures:**
+- **RTX 4070 (Ada, sm_89):** Replace `-arch=sm_75` with `-arch=sm_89`
+- **RTX 3090 (Ampere, sm_86):** Replace `-arch=sm_75` with `-arch=sm_86`
+- **GTX 1080 Ti (Pascal, sm_61):** Replace `-arch=sm_75` with `-arch=sm_61`
+
+**Note:**
+- The `--ptxas-options=-v` flag outputs register usage info to `data/ptxas_2080ti.log`
+- If you get errors, see [Troubleshooting](#troubleshooting)
+- **However**, you don't need to build manually! The `gen_trials_2080ti.sh` script builds automatically.
 
 ### Step 3: Run GPU Calibration Benchmarks
 
@@ -266,22 +274,30 @@ ARCHITECTURE_MAP = {
 }
 ```
 
-#### Step 3: Update Filenames for RTX 4070
+#### Step 3: Update Build Architecture and Filenames
 
+**Update the compile architecture in `scripts/gen_trials_2080ti.sh` (line 9):**
 ```bash
-# Use a different tag for RTX 4070
-export GPU_TAG="4070"
+# Change from sm_75 (Turing) to sm_89 (Ada Lovelace):
+nvcc -std=c++14 -O3 --ptxas-options=-v -lineinfo -arch=sm_89 -DTILE=32 \
+  -o bin/runner runner/main.cu 2> data/ptxas_4070.log
 ```
 
-**OR** manually update scripts:
+**Update the output filename tag (also in `scripts/gen_trials_2080ti.sh`):**
 
-In `scripts/gen_trials_2080ti.sh`, change:
+Find the line near the top:
 ```bash
-TAG="2080ti"
+TAG="2080ti"  # Or TAG is set in the script calls
 ```
-to:
+
+Change throughout the script:
+- `2> data/ptxas_2080ti.log` → `2> data/ptxas_4070.log`
+- All script calls with `2080ti` → `4070`
+
+**OR create a separate script for RTX 4070:**
 ```bash
-TAG="4070"
+cp scripts/gen_trials_2080ti.sh scripts/gen_trials_4070.sh
+# Then edit gen_trials_4070.sh to use sm_89 and "4070" tag
 ```
 
 #### Step 4: Run the Full Pipeline
@@ -443,13 +459,26 @@ sudo apt-get install cuda-cublas-dev-12-x  # Replace 12-x with your version
 ```
 
 #### "unsupported GPU architecture"
-**Problem:** GPU too old (compute capability < 6.0)
+**Problem:** GPU too old (compute capability < 6.0) or architecture not specified
 
 **Solution:**
-Update CMakeLists.txt to include your architecture:
-```cmake
-set(CMAKE_CUDA_ARCHITECTURES 60 61 70 75 80 86 89)  # Add your sm_XX
+Update the `-arch` flag in `scripts/gen_trials_2080ti.sh` (line 9):
+```bash
+# Change from:
+nvcc -std=c++14 -O3 --ptxas-options=-v -lineinfo -arch=sm_75 -DTILE=32 \
+  -o bin/runner runner/main.cu 2> data/ptxas_2080ti.log
+
+# To your architecture (e.g., sm_61 for GTX 1080 Ti):
+nvcc -std=c++14 -O3 --ptxas-options=-v -lineinfo -arch=sm_61 -DTILE=32 \
+  -o bin/runner runner/main.cu 2> data/ptxas_2080ti.log
 ```
+
+**Common architectures:**
+- sm_60/sm_61: Pascal (GTX 1080 Ti, Titan X)
+- sm_70: Volta (Titan V, V100)
+- sm_75: Turing (RTX 2060/2070/2080 Ti)
+- sm_86: Ampere (RTX 3060/3070/3080/3090)
+- sm_89: Ada Lovelace (RTX 4060/4070/4080/4090)
 
 ### Runtime Errors
 
@@ -476,7 +505,7 @@ ls data/trials_*
 ./scripts/gen_trials_2080ti.sh
 
 # Verify runner built correctly
-./build/runner --help
+./bin/runner --help
 ```
 
 #### "Thermal throttling detected"
@@ -524,7 +553,7 @@ cat ../data/props_2080ti.out
 
 ```bash
 # Test one kernel manually
-./build/runner vector_add --rows 1048576 --cols 1 --block 256 --warmup 10 --reps 50
+./bin/runner vector_add --N 1048576 --block 256 --warmup 10 --reps 50
 
 # Output: CSV line with timing data
 ```
@@ -583,12 +612,12 @@ df['compute_efficiency'] = df['achieved_compute_gflops'] / df['calibrated_comput
 ## Summary Checklist
 
 - [ ] CUDA Toolkit installed and in PATH
-- [ ] Project built successfully (`make` in build/)
+- [ ] Runner compiled successfully (`bin/runner` executable created)
 - [ ] GPU calibration completed (3 `.out` files in `data/`)
-- [ ] Trial data generated (16 `trials_*.csv` files in `data/`)
-- [ ] GPU specs added to `build_final_dataset.py`
+- [ ] Trial data generated (~65 `trials_*.csv` files in `data/`)
+- [ ] GPU specs added to `build_final_dataset.py` (if using new GPU)
 - [ ] Final dataset created (`runs_<gpu>_final.csv`)
-- [ ] Output verified (16 rows, 40 columns, no errors)
+- [ ] Output verified (~65 rows, 40 columns, no errors)
 
 **Total Time:** 15-30 minutes for complete pipeline
 
