@@ -1,22 +1,28 @@
+#!/usr/bin/env python3
 import sys, json, csv
 
-runs_in, calib_json, runs_out, warp = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+RUNS_IN, CALIB_JSON, RUNS_OUT, WARP = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
 
-C = json.load(open(calib_json))
-peak_gflops = float(C["sustained_compute_gflops"])
-peak_gbps   = float(C["sustained_mem_bandwidth_gbps"])
+C = json.load(open(CALIB_JSON))
+peak_gflops = float(C.get("sustained_compute_gflops", 0.0))
+peak_gbps   = float(C.get("sustained_mem_bandwidth_gbps", 0.0))
 
-peak_gflops_1 = peak_gflops / warp if peak_gflops>0 else 0.0
-peak_gbps_1   = peak_gbps   / warp if peak_gbps>0   else 0.0
+peak_gflops_1 = peak_gflops / WARP if peak_gflops>0 else 0.0
+peak_gbps_1   = peak_gbps   / WARP if peak_gbps>0   else 0.0
 
-rd = csv.DictReader(open(runs_in))
-out_fields = rd.fieldnames + ["T1_model_ms","speedup_model"]
-w = csv.DictWriter(open(runs_out,"w",newline=""), fieldnames=out_fields)
+rd = csv.DictReader(open(RUNS_IN))
+
+# Remove useless columns: args, device_name, block_x/y/z, grid_x/y/z, warmup, trials, conv_padding, gpu_cc_minor
+# KEEP reps and iters as they are important iteration metadata
+exclude_cols = {"args", "device_name", "block_x", "block_y", "block_z", "grid_x", "grid_y", "grid_z",
+                "warmup", "trials", "conv_padding", "gpu_cc_minor"}
+fields = [f for f in rd.fieldnames if f not in exclude_cols] + ["T1_model_ms","speedup_model"]
+w  = csv.DictWriter(open(RUNS_OUT,"w",newline=""), fieldnames=fields, extrasaction='ignore')
 w.writeheader()
 
 for r in rd:
-    fl   = float(r.get("FLOPs") or 0.0)
-    by   = float(r.get("BYTES") or 0.0)
+    fl = float(r.get("FLOPs") or 0.0)
+    by = float(r.get("BYTES") or 0.0)
     Tpar = float(r.get("mean_ms") or r.get("time_ms") or 0.0)
 
     if fl==0.0 and by==0.0:
@@ -30,6 +36,4 @@ for r in rd:
     r["T1_model_ms"] = f"{T1:.6f}"
     r["speedup_model"] = f"{(T1/Tpar):.2f}" if (T1>0 and Tpar>0) else ""
     w.writerow(r)
-
-print(f"[OK] wrote {runs_out}")
 

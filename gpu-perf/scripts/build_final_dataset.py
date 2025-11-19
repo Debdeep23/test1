@@ -1,6 +1,41 @@
 #!/usr/bin/env python3
 import csv, re, sys, glob, math, statistics
 
+# ---------- GPU specifications lookup ----------
+GPU_SPECS = {
+    "NVIDIA GeForce RTX 2080 Ti": {
+        "architecture": "Turing",
+        "peak_gflops_fp32": 13450,  # 68 SMs × 64 cores/SM × 1.545 GHz boost × 2 FLOPs/cycle
+        "peak_bandwidth_gbps": 616,  # 352-bit × 14 Gbps / 8
+    },
+    "NVIDIA GeForce RTX 3090": {
+        "architecture": "Ampere",
+        "peak_gflops_fp32": 35580,
+        "peak_bandwidth_gbps": 936,
+    },
+    "NVIDIA GeForce RTX 3080": {
+        "architecture": "Ampere",
+        "peak_gflops_fp32": 29770,
+        "peak_bandwidth_gbps": 760,
+    },
+    "NVIDIA GeForce RTX 4090": {
+        "architecture": "Ada Lovelace",
+        "peak_gflops_fp32": 82580,
+        "peak_bandwidth_gbps": 1008,
+    },
+}
+
+ARCHITECTURE_MAP = {
+    (6, 0): "Pascal",
+    (6, 1): "Pascal",
+    (7, 0): "Volta",
+    (7, 5): "Turing",
+    (8, 0): "Ampere",
+    (8, 6): "Ampere",
+    (8, 9): "Ada Lovelace",
+    (9, 0): "Hopper",
+}
+
 # ---------- tiny helpers ----------
 def I(x, d=0):
     try:
@@ -23,41 +58,49 @@ def clean_int_field(s):
 
 def kv_from_file(path):
     kv = {}
-    pat = re.compile(r'^([A-Za-z0-9_]+)=(.*)$')
     with open(path) as f:
         for ln in f:
             ln = ln.strip()
-            m = pat.match(ln)
-            if not m: continue
-            k, v = m.group(1), m.group(2)
-            kv[k] = v
+            if not ln:
+                continue
+            # Check if line has multiple key=value pairs (e.g., "major=7 minor=5")
+            # by looking for space-separated tokens that all contain '='
+            tokens = ln.split()
+            if all('=' in token for token in tokens):
+                # Multiple key=value pairs on one line
+                for token in tokens:
+                    k, v = token.split('=', 1)
+                    kv[k] = v
+            elif '=' in ln:
+                # Single key=value pair (may have spaces in value)
+                k, v = ln.split('=', 1)
+                kv[k.strip()] = v.strip()
     return kv
 
 # ---------- size + shape sanitation ----------
 def pick_size_family(row):
     rows, cols = I(row.get("rows")), I(row.get("cols"))
     N    = I(row.get("N"))
-    H, W = I(row.get("H")), I(row.get("W"))
-    matN = I(row.get("matN"))
 
     # fallbacks: accept whatever the trial used
     if N == 0 and rows > 0:
         N = rows if cols <= 1 else rows * cols
-    if H == 0 and W == 0 and rows > 0 and cols > 0:
-        H, W = rows, cols
-    if matN == 0 and rows > 0 and (cols == 0 or rows == cols):
-        matN = rows
 
-    # emit exactly ONE family
-    out = {"N":"", "rows":"", "cols":"", "H":"", "W":"", "matN":""}
-    if rows > 0 and cols > 0:
-        out["rows"], out["cols"] = str(rows), str(cols)
-    elif matN > 0:
-        out["matN"] = str(matN)
-    elif H > 0 and W > 0:
-        out["H"], out["W"] = str(H), str(W)
-    elif N > 0:
-        out["N"] = str(N)
+    # Mutually exclusive: either N (1D) or rows/cols (2D), never both
+    out = {"N":"", "rows":"", "cols":""}
+
+    # 2D kernels: rows > 0 and cols > 1
+    if rows > 0 and cols > 1:
+        # 2D kernel: only populate rows/cols
+        out["rows"] = str(rows)
+        out["cols"] = str(cols)
+    else:
+        # 1D kernel: consolidate into N only
+        if N == 0 and rows > 0:
+            N = rows * max(1, cols)
+        if N > 0:
+            out["N"] = str(N)
+
     return out
 
 def sane_block_grid(row):
@@ -75,25 +118,28 @@ def static_counts(row):
     # sizes with fallbacks
     rows, cols = I(row.get("rows")), I(row.get("cols"))
     N    = I(row.get("N"))
-    H, W = I(row.get("H")), I(row.get("W"))
-    matN = I(row.get("matN"))
     iters = I(row.get("iters"))
     blk   = max(1, I(row.get("block")))
 
+    # Derive N from rows/cols if needed
     if N == 0 and rows > 0:
         N = rows if cols <= 1 else rows * cols
-    if H == 0 and W == 0 and rows > 0 and cols > 0:
-        H, W = rows, cols
-    if matN == 0 and rows > 0 and (cols == 0 or rows == cols):
-        matN = rows
 
-    FLOPs = 0; BYTES = 0; SH = 0; WS = 0; pat = "coalesced"
+    # For matmul kernels, derive matN from rows (assumes square matrices)
+    matN = rows if rows > 0 and rows == cols else 0
 
-    if k in ("vector_add","vector_add_divergent"):
+    FLOPs = 0; BYTES = 0; WS = 0; pat = "coalesced"
+
+    if k == "vector_add":
         FLOPs = N
         BYTES = 3*N*4
         WS    = BYTES
         pat   = "coalesced"
+    elif k == "vector_add_divergent":
+        FLOPs = N
+        BYTES = 3*N*4
+        WS    = BYTES
+        pat   = "divergent"
     elif k == "saxpy":
         FLOPs = 2*N
         BYTES = 3*N*4
@@ -111,7 +157,6 @@ def static_counts(row):
     elif k == "shared_transpose":
         elems = rows*cols
         BYTES = 2*elems*4
-        SH    = elems*4
         WS    = BYTES
         pat   = "transpose_tiled"
     elif k == "matmul_naive":
@@ -122,21 +167,18 @@ def static_counts(row):
     elif k == "matmul_tiled":
         FLOPs = 2*matN*matN*matN
         BYTES = 4*(matN*matN*3)
-        SH    = 2*matN*matN*4
         WS    = BYTES
         pat   = "matmul_tiled"
     elif k == "reduce_sum":
         FLOPs   = max(0, N-1)
         partial = max(1, (N // (2*blk))) * 4
         BYTES   = N*4 + partial + 4
-        SH      = blk*4
         WS      = N*4
         pat     = "shared_reduction"
     elif k == "dot_product":
         FLOPs   = 2*N
         partial = max(1, (N // (2*blk))) * 4
         BYTES   = 2*N*4 + partial + 4
-        SH      = blk*4
         WS      = 2*N*4
         pat     = "shared_reduction"
     elif k == "histogram":
@@ -152,33 +194,43 @@ def static_counts(row):
         WS    = 4
         pat   = "atomics_hotspot"
     elif k == "conv2d_3x3":
-        elems = max(1, rows*cols if rows*cols>0 else H*W)
+        elems = max(1, rows*cols)
         FLOPs = 18 * elems
         BYTES = 2  * elems * 4
         WS    = elems * 4
         pat   = "stencil_3x3"
     elif k == "conv2d_7x7":
-        elems = max(1, rows*cols if rows*cols>0 else H*W)
+        elems = max(1, rows*cols)
         FLOPs = 98 * elems
         BYTES = 2  * elems * 4
         WS    = elems * 4
         pat   = "stencil_7x7"
     elif k == "shared_bank_conflict":
-        SH  = max(1, blk)*4
-        WS  = SH
+        WS  = 4096  # shared memory only kernel
         pat = "smem_bank_conflict"
     else:
         # fallback: try not to emit zeros if we can infer an element count
         n = 0
         if rows>0 and cols>0: n = rows*cols
         elif N>0: n = N
-        elif H>0 and W>0: n = H*W
         BYTES = 2*n*4 if n>0 else 0
         WS    = BYTES
         pat   = "unknown"
 
     AI = (FLOPs/float(BYTES)) if BYTES>0 else 0.0
-    return FLOPs, BYTES, SH, WS, AI, pat
+
+    # Branch divergence flag (kernels with explicit control flow divergence)
+    DIVERGENT_KERNELS = {"vector_add_divergent"}
+    has_divergence = 1 if k in DIVERGENT_KERNELS else 0
+
+    # Atomic operations count
+    atomic_ops = 0
+    if k == "atomic_hotspot":
+        atomic_ops = max(1, N) * max(1, iters)
+    elif k == "histogram":
+        atomic_ops = N
+
+    return FLOPs, BYTES, WS, AI, pat, has_divergence, atomic_ops
 
 # ---------- T1 + speedup ----------
 def add_T1_and_speedup(row, peak_gflops, peak_gbps, warp_size):
@@ -246,7 +298,7 @@ def aggregate_trials(trial_glob):
                     r["kernel"], r["args"], r["regs"], r["shmem"], r["device_name"],
                     r["block_x"], r["block_y"], r["block_z"], r["grid_x"], r["grid_y"], r["grid_z"],
                     r.get("warmup",""), r.get("reps",""),
-                    r.get("N",""), r.get("rows",""), r.get("cols",""), r.get("H",""), r.get("W",""), r.get("matN",""),
+                    r.get("N",""), r.get("rows",""), r.get("cols",""),
                     r.get("iters","")
                 )
                 groups.setdefault(key, []).append(F(r.get("time_ms"), 0.0))
@@ -258,7 +310,7 @@ def aggregate_trials(trial_glob):
         std_ms  = statistics.pstdev(times) if len(times)>1 else 0.0
         (kernel,args,regs,shmem,device_name,
          bx,by,bz,gx,gy,gz,warmup,reps,
-         N,rows,cols,H,W,matN,iters) = key
+         N,rows,cols,iters) = key
         out.append({
             "kernel": kernel, "args": args, "regs": regs, "shmem": shmem, "device_name": device_name,
             "block_x": bx, "block_y": by, "block_z": bz,
@@ -267,8 +319,7 @@ def aggregate_trials(trial_glob):
             "trials": str(len(times)),
             "mean_ms": f"{mean_ms:.6f}",
             "std_ms": f"{std_ms:.6f}",
-            "N": N, "rows": rows, "cols": cols, "H": H, "W": W, "matN": matN,
-            "iters": iters,
+            "N": N, "rows": rows, "cols": cols,
             "block": str(I(bx)*I(by)*I(bz)),
             "grid_blocks": str(I(gx)*I(gy)*I(gz)),
         })
@@ -284,15 +335,24 @@ def main():
     # 1) aggregate per-kernel
     agg = aggregate_trials(trial_glob)
 
-    # 2) per-kernel static counts
+    # 2) per-kernel static counts + size_kind
     for r in agg:
-        FLOPs,BYTES,SH,WS,AI,pat = static_counts(r)
+        FLOPs,BYTES,WS,AI,pat,has_divergence,atomic_ops = static_counts(r)
         r["FLOPs"] = str(FLOPs)
         r["BYTES"] = str(BYTES)
-        r["shared_bytes"] = str(SH)
+        r["shared_bytes"] = r.get("shmem", "0")  # Use actual shmem from kernel launch
         r["working_set_bytes"] = str(WS)
         r["arithmetic_intensity"] = f"{AI:.6f}"
         r["mem_pattern"] = pat
+        r["has_branch_divergence"] = str(has_divergence)
+        r["atomic_ops_count"] = str(atomic_ops)
+        # Determine size_kind
+        rows = I(r.get("rows"))
+        cols = I(r.get("cols"))
+        if rows > 0 and cols > 1:
+            r["size_kind"] = "rows_cols"
+        else:
+            r["size_kind"] = "N"
 
     # 3) GPU metrics + sustained ceilings
     P = read_props(props_out)
@@ -300,11 +360,19 @@ def main():
     fl = read_ceiling(gemm_out,   "SUSTAINED_COMPUTE_GFLOPS")
     warp = P.get("warpSize", 32) or 32
 
+    # Get GPU specs from lookup table
+    device_name = P["device_name"]
+    specs = GPU_SPECS.get(device_name, {})
+    architecture = ARCHITECTURE_MAP.get((P["cc_major"], P.get("cc_minor", 0)), "Unknown")
+    compute_capability = f"{P['cc_major']}.{P.get('cc_minor', 0)}"
+    peak_gflops = specs.get("peak_gflops_fp32", 0)
+    peak_bandwidth = specs.get("peak_bandwidth_gbps", 0)
+
     for r in agg:
         r.update({
             "gpu_device_name": P["device_name"],
-            "gpu_cc_major": str(P["cc_major"]),
-            "gpu_cc_minor": str(P["cc_minor"]),
+            "gpu_architecture": architecture,
+            "gpu_compute_capability": compute_capability,
             "gpu_sms": str(P["multiProcessorCount"]),
             "gpu_max_threads_per_sm": str(P["maxThreadsPerMultiProcessor"]),
             "gpu_max_blocks_per_sm": str(P["maxBlocksPerMultiProcessor"]),
@@ -312,27 +380,51 @@ def main():
             "gpu_shared_mem_per_sm": str(P["sharedMemPerMultiprocessor"]),
             "gpu_l2_bytes": str(P["l2CacheSizeBytes"]),
             "gpu_warp_size": str(P["warpSize"]),
-            "sustained_mem_bandwidth_gbps": f"{bw:.2f}",
-            "sustained_compute_gflops": f"{fl:.2f}",
+            "peak_theoretical_gflops": str(peak_gflops),
+            "peak_theoretical_bandwidth_gbps": str(peak_bandwidth),
+            "calibrated_mem_bandwidth_gbps": f"{bw:.2f}",
+            "calibrated_compute_gflops": f"{fl:.2f}",
         })
+        # Calculate achieved metrics
+        mean_ms = F(r.get("mean_ms"))
+        flops = F(r.get("FLOPs"))
+        bytes_accessed = F(r.get("BYTES"))
+        if mean_ms > 0:
+            r["achieved_compute_gflops"] = f"{(flops/(mean_ms/1000.0)/1e9):.2f}"
+            r["achieved_bandwidth_gbps"] = f"{(bytes_accessed/(mean_ms/1000.0)/1e9):.2f}"
+        else:
+            r["achieved_compute_gflops"] = "0.00"
+            r["achieved_bandwidth_gbps"] = "0.00"
         add_T1_and_speedup(r, fl, bw, warp)
 
-    # 4) write final CSV
+    # 4) write final CSV with all metrics (11/11 kernel metrics + 13/13 GPU metrics)
     flds = [
-        "kernel","args","regs","shmem","device_name",
-        "block_x","block_y","block_z","grid_x","grid_y","grid_z",
+        # Kernel identification
+        "kernel","regs","shmem",
+        # Launch configuration
         "block","grid_blocks",
-        "warmup","reps","trials","mean_ms","std_ms",
-        "N","rows","cols","H","W","matN","iters",
-        "FLOPs","BYTES","shared_bytes","working_set_bytes","arithmetic_intensity","mem_pattern",
-        "gpu_device_name","gpu_cc_major","gpu_cc_minor","gpu_sms",
-        "gpu_max_threads_per_sm","gpu_max_blocks_per_sm","gpu_regs_per_sm","gpu_shared_mem_per_sm",
-        "gpu_l2_bytes","gpu_warp_size",
-        "sustained_mem_bandwidth_gbps","sustained_compute_gflops",
+        # Performance results
+        "mean_ms","std_ms",
+        # Problem sizes
+        "N","rows","cols","iters","size_kind",
+        # Kernel metrics (11 total)
+        "FLOPs","BYTES","shared_bytes","working_set_bytes",
+        "arithmetic_intensity","mem_pattern",
+        "has_branch_divergence","atomic_ops_count",
+        # GPU hardware specs (13 total)
+        "gpu_device_name","gpu_architecture","gpu_compute_capability",
+        "gpu_sms","gpu_max_threads_per_sm","gpu_max_blocks_per_sm",
+        "gpu_regs_per_sm","gpu_shared_mem_per_sm","gpu_l2_bytes","gpu_warp_size",
+        # GPU performance limits
+        "peak_theoretical_gflops","peak_theoretical_bandwidth_gbps",
+        "calibrated_mem_bandwidth_gbps","calibrated_compute_gflops",
+        # Achieved performance
+        "achieved_bandwidth_gbps","achieved_compute_gflops",
+        # Performance models
         "T1_model_ms","speedup_model"
     ]
     with open(final_csv, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=flds)
+        w = csv.DictWriter(f, fieldnames=flds, extrasaction='ignore')
         w.writeheader()
         for r in agg:
             w.writerow(r)

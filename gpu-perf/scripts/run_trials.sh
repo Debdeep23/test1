@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # scripts/run_trials.sh
-# Usage: scripts/run_trials.sh <kernel> "<argstr>" <regs> <shmem> <trials> [tag]
+# Usage: scripts/run_trials.sh <kernel> "<argstr>" <regs> <shmem> <trials> [device_tag]
 set -euo pipefail
 
 KERNEL="$1"
@@ -8,7 +8,7 @@ ARGSTR="$2"
 REGS="${3:-0}"
 SHMEM="${4:-0}"
 TRIALS="${5:-10}"
-TAG="${6:-2080ti}"  # Default to 2080ti if not provided
+TAG="${6:-2080ti}"  # default to 2080ti for backward compatibility
 
 mkdir -p data
 

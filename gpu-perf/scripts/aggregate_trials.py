@@ -1,48 +1,81 @@
-import sys, csv, glob, statistics as stats
+#!/usr/bin/env python3
+import sys, csv, glob, math, re
 
-paths = sorted(glob.glob(sys.argv[1]))
-rows = []
-for p in paths:
-    with open(p, newline='') as f:
+# Usage: python3 scripts/aggregate_trials.py data/trials_*__2080ti.csv > data/runs_2080ti.csv
+
+def I(x):
+    try: return int(float(x))
+    except: return 0
+
+def F(x):
+    try: return float(x)
+    except: return 0.0
+
+def extract_iters_from_args(args):
+    """Extract --iters N from args string"""
+    m = re.search(r'--iters\s+(\d+)', args)
+    return int(m.group(1)) if m else 0
+
+files = []
+for arg in sys.argv[1:]:
+    files.extend(glob.glob(arg))
+if not files:
+    print("kernel,args,regs,shmem,device_name,block_x,block_y,block_z,grid_x,grid_y,grid_z,warmup,reps,trials,mean_ms,std_ms,N,rows,cols,iters,block,grid_blocks")
+    sys.exit(0)
+
+# Group by stable shape/size identity (no free-form args)
+groups = {}  # key -> list of time_ms
+meta   = {}  # key -> representative row
+
+def key_of(r):
+    return (
+        r.get("kernel",""),
+        I(r.get("rows")), I(r.get("cols")),
+        I(r.get("block_x")), I(r.get("block_y")), I(r.get("block_z")),
+        I(r.get("grid_x")),  I(r.get("grid_y")),  I(r.get("grid_z")),
+        I(r.get("regs")),    I(r.get("shmem")),
+        I(r.get("warmup")),  I(r.get("reps")),
+    )
+
+for path in files:
+    with open(path, newline="") as f:
         rd = csv.DictReader(f)
-        rows.extend(rd)
+        for r in rd:
+            k = key_of(r)
+            t = F(r.get("time_ms"))
+            if t <= 0:  # skip broken lines
+                continue
+            groups.setdefault(k, []).append(t)
+            # keep a representative row's metadata
+            if k not in meta:
+                # normalize some fields
+                r["block"] = str(max(1, I(r.get("block_x"))*I(r.get("block_y"))*I(r.get("block_z"))))
+                r["grid_blocks"] = str(max(1, I(r.get("grid_x"))*I(r.get("grid_y"))*I(r.get("grid_z"))))
+                # Extract iters from args if not already present
+                if not r.get("iters") or r["iters"] == "":
+                    r["iters"] = str(extract_iters_from_args(r.get("args", "")))
+                meta[k] = r
 
-def key(r):
-    return (r["kernel"],
-            r.get("block_x",""), r.get("block_y",""), r.get("block_z",""),
-            r.get("grid_x",""),  r.get("grid_y",""),  r.get("grid_z",""))
-
-groups = {}
-for r in rows:
-    groups.setdefault(key(r), []).append(r)
-
-out = []
-for k, rs in groups.items():
-    times = [float(r["time_ms"]) for r in rs]
-    regs  = [int(r.get("regs","0")) for r in rs if r.get("regs")]
-    shmem = [int(r.get("shmem","0")) for r in rs if r.get("shmem")]
-    devn  = [r.get("device_name","") for r in rs]
-
-    r0 = rs[0]
-    o = {
-      "kernel": r0["kernel"],
-      "args":   r0.get("args",""),
-      "regs":   max(regs) if regs else 0,
-      "shmem":  max(shmem) if shmem else 0,
-      "device_name": devn[0] if devn else "",
-      "block_x": r0.get("block_x",""), "block_y": r0.get("block_y",""), "block_z": r0.get("block_z",""),
-      "grid_x":  r0.get("grid_x",""),  "grid_y":  r0.get("grid_y",""),  "grid_z":  r0.get("grid_z",""),
-      "warmup":  r0.get("warmup",""), "reps": r0.get("reps",""),
-      "trials":  len(times),
-      "mean_ms": f"{stats.mean(times):.6f}",
-      "std_ms":  f"{(stats.pstdev(times) if len(times)>1 else 0.0):.6f}",
-    }
-    # carry unified size fields if present in trial CSVs
-    for fld in ("rows","cols","iters","block","grid_blocks"):
-        if fld in r0: o[fld] = r0[fld]
-    out.append(o)
-
-w = csv.DictWriter(sys.stdout, fieldnames=list(out[0].keys()))
+# Output
+out_fields = [
+    "kernel","args","regs","shmem","device_name",
+    "block_x","block_y","block_z","grid_x","grid_y","grid_z",
+    "warmup","reps","trials","mean_ms","std_ms",
+    "N","rows","cols","iters","block","grid_blocks"
+]
+w = csv.DictWriter(sys.stdout, fieldnames=out_fields)
 w.writeheader()
-w.writerows(out)
+
+for k, times in groups.items():
+    r = meta[k]
+    n = len(times)
+    mean = sum(times)/n
+    var  = sum((x-mean)**2 for x in times)/n if n>1 else 0.0
+    std  = math.sqrt(var)
+
+    out = {c: r.get(c,"") for c in out_fields}
+    out["trials"]  = str(n)
+    out["mean_ms"] = f"{mean:.6f}"
+    out["std_ms"]  = f"{std:.6f}"
+    w.writerow(out)
 

@@ -1,132 +1,268 @@
-import sys, csv, math
+#!/usr/bin/env python3
+import sys, csv
 
-inp  = sys.argv[1]
-outp = sys.argv[2]
+# Usage:
+#   python3 scripts/static_counts.py <runs_in.csv> <runs_out.csv>
+#
+# Input is the aggregated "runs" CSV (one row per kernel/shape).
+# Output adds static metrics: FLOPs, BYTES, arithmetic_intensity, working_set_bytes,
+# shared_bytes (per-block), mem_pattern, size_kind, and normalizes size fields.
 
 def I(x):
-    try: return int(x)
+    try: return int(float(x))
     except: return 0
 
-def counts_for_kernel(k, rows, cols, block, iters):
-    N = rows if cols == 1 else rows*cols
+def F(x):
+    try: return float(x)
+    except: return 0.0
+
+def first_missing_add(fields, name):
+    if name not in fields:
+        fields.append(name)
+
+def size_from_row(r):
+    """
+    Normalize sizes - mutually exclusive:
+      - For 1D kernels: only N is populated, rows/cols are 0
+      - For 2D kernels: only rows/cols are populated, N is 0
+    Returns (size_kind, N, rows, cols)
+    """
+    rows = I(r.get("rows"))
+    cols = I(r.get("cols"))
+    N    = I(r.get("N"))  # may be missing in input
+
+    # Determine if this is 1D or 2D based on what's populated
+    # 2D: rows > 0 and cols > 1 (true 2D matrix)
+    # 1D: everything else
+    if rows > 0 and cols > 1:
+        # This is a 2D kernel (transpose, matmul, conv)
+        size_kind = "rows_cols"
+        N = 0  # Clear N for 2D kernels
+    else:
+        # This is a 1D kernel
+        size_kind = "N"
+        # Consolidate everything into N
+        if N == 0:
+            if rows > 0:
+                N = rows * max(1, cols)  # rows * cols if cols>0, else just rows
+        # Clear rows/cols for 1D kernels
+        rows = 0
+        cols = 0
+
+    return size_kind, N, rows, cols
+
+def per_kernel_counts(k, r, size_kind, N, rows, cols):
+    """
+    Return FLOPs, BYTES, shared_bytes (per-block), mem_pattern,
+           working_set_bytes, conv_padding
+    All byte counts assume float32 unless kernel is clearly integer (histogram bins).
+    """
+    block = I(r.get("block"))           # threads per block
+    iters = I(r.get("iters"))           # some kernels use an --iters arg
+
     FLOPs = 0
     BYTES = 0
-    shared_bytes = 0
+    shared_bytes = 0       # PER-BLOCK estimate
     mem_pattern = "coalesced"
     working_set_bytes = 0
+    conv_padding = ""      # "same" or "valid" if you want to label convs
+
+    # Treat sizes
+    R = rows
+    C = cols
 
     if k == "vector_add":
-        FLOPs = N
-        BYTES = 3*N*4
+        # C = A + B
+        FLOPs = N                   # 1 add
+        BYTES = 3 * N * 4           # read A,B; write C
         working_set_bytes = BYTES
 
+    elif k == "vector_add_divergent":
+        FLOPs = N
+        BYTES = 3 * N * 4
+        working_set_bytes = BYTES
+        mem_pattern = "divergent"
+
     elif k == "saxpy":
-        FLOPs = 2*N
-        BYTES = 3*N*4
+        # y = a*x + y
+        FLOPs = 2 * N               # mul + add
+        BYTES = 3 * N * 4           # read x,y; write y
         working_set_bytes = BYTES
 
     elif k == "strided_copy_8":
-        # copy every 8th element
-        touched = N//8
-        FLOPs = 0
-        BYTES = 2*touched*4
-        mem_pattern = "stride_8"
-        working_set_bytes = 2*touched*4
-
-    elif k == "naive_transpose":
-        FLOPs = 0
-        BYTES = 2*rows*cols*4
-        mem_pattern = "transpose_naive"
+        # If your kernel actually touched all elements, count full traffic (read+write)
+        BYTES = 2 * N * 4
         working_set_bytes = BYTES
-
-    elif k == "shared_transpose":
         FLOPs = 0
-        BYTES = 2*rows*cols*4
-        # rough SMEM tile traffic proxy (not double-counting global)
-        shared_bytes = rows*cols*4
-        mem_pattern = "transpose_tiled"
-        working_set_bytes = BYTES
-
-    elif k == "matmul_naive":
-        # rows==cols==matN (after normalization)
-        n = rows
-        FLOPs = 2*n*n*n
-        BYTES = 4*(n*n*3)             # A,B,C once (pessimistic but stable)
-        working_set_bytes = BYTES
-
-    elif k == "matmul_tiled":
-        n = rows
-        FLOPs = 2*n*n*n
-        BYTES = 4*(n*n*3)
-        shared_bytes = 2*n*n*4         # tiles exchanged through SMEM (proxy)
-        working_set_bytes = BYTES
-
-    elif k == "reduce_sum":
-        # 2*elements per thread reduction pattern
-        FLOPs = N
-        BYTES = N*4 + max(1, N//(2*max(1,block)))*4
-        shared_bytes = max(1,block)*4
-        mem_pattern = "shared_reduction"
-        working_set_bytes = int(3*N*4)
-
-    elif k == "dot_product":
-        FLOPs = 2*N
-        BYTES = 2*N*4 + max(1, N//(2*max(1,block)))*4
-        shared_bytes = max(1,block)*4
-        mem_pattern = "shared_reduction"
-        working_set_bytes = 2*N*4
-
-    elif k == "histogram":
-        # one atomic per element into 256 bins (uint32)
-        FLOPs = 0
-        BYTES = N*8                    # RMW ~ 2 * 4B
-        mem_pattern = "atomics_global_256"
-        working_set_bytes = N*4 + 256*4
+        mem_pattern = "strided_8"
 
     elif k == "random_access":
+        # 1 random read + 1 write
         FLOPs = 0
-        BYTES = 2*N*4                  # one gather + one write
-        mem_pattern = "random_gather"
-        working_set_bytes = 2*N*4
+        BYTES = 2 * N * 4
+        working_set_bytes = BYTES
+        mem_pattern = "random_gather_scatter"
 
-    elif k == "shared_bank_conflict":
+    elif k == "reduce_sum":
+        # Parallel reduction over N float32
+        # FLOPs: ~N-1 adds
+        FLOPs = max(0, N - 1)
+        # BYTES: read N*4 + write partials (one per grid block) + final result
+        grid_blocks = I(r.get("grid_blocks"))
+        partials = max(1, grid_blocks)
+        BYTES = N*4 + partials*4 + 4
+        working_set_bytes = N*4
+        shared_bytes = max(1, block) * 4   # per-block sMem (one float per thread)
+        mem_pattern = "shared_reduction"
+
+    elif k == "dot_product":
+        # dot of length N: N mul + N-1 add ~ 2N FLOPs
+        FLOPs = 2 * N
+        # reads x and y, writes partials (one per grid block) + final result
+        grid_blocks = I(r.get("grid_blocks"))
+        partials = max(1, grid_blocks)
+        BYTES = 2*N*4 + partials*4 + 4
+        working_set_bytes = 2*N*4
+        shared_bytes = max(1, block) * 4
+        mem_pattern = "shared_reduction"
+
+    elif k == "histogram":
+        # Assume 256 bins of uint32, one atomic per input
         FLOPs = 0
-        BYTES = 0                      # global-traffic-free by design
-        shared_bytes = max(1,block)*4
-        mem_pattern = "smem_bank_conflict"
-        working_set_bytes = shared_bytes
+        BYTES = N * 8     # RMW ~ read+write a 4B counter
+        working_set_bytes = N*4 + 256*4
+        mem_pattern = "atomics_256bins"
 
     elif k == "atomic_hotspot":
+        # many atomics to a single counter (iters per element)
         FLOPs = 0
-        BYTES = N * max(1,iters) * 8   # many RMWs to one counter
-        mem_pattern = "atomics_hotspot"
+        it = iters if iters > 0 else 1
+        BYTES = N * it * 8
         working_set_bytes = 4
+        mem_pattern = "atomics_hotspot"
 
-    return FLOPs, BYTES, shared_bytes, mem_pattern, int(working_set_bytes)
+    elif k == "naive_transpose":
+        # read + write every element once
+        # rows x cols matrix, float32
+        if R>0 and C>0:
+            elements = R*C
+            FLOPs = 0
+            BYTES = 2 * elements * 4
+            working_set_bytes = BYTES
+            mem_pattern = "transpose_naive"
 
-rd = csv.DictReader(open(inp))
-base = rd.fieldnames
-add  = ["FLOPs","BYTES","shared_bytes","working_set_bytes","mem_pattern","arithmetic_intensity"]
-out_fields = base + [f for f in add if f not in base]
+    elif k == "shared_transpose":
+        if R>0 and C>0:
+            elements = R*C
+            FLOPs = 0
+            BYTES = 2 * elements * 4
+            # per-block SMEM is small; keep per-block estimate tied to launch shmem
+            shared_bytes = I(r.get("shmem"))  # per-block dynamic shmem
+            working_set_bytes = BYTES
+            mem_pattern = "transpose_tiled"
 
-w = csv.DictWriter(open(outp,"w",newline=""), fieldnames=out_fields)
-w.writeheader()
+    elif k == "matmul_naive":
+        # square matrices of size rows x cols assumed rows==cols for your runs
+        n = R if R>0 else cols if cols>0 else 0
+        if n == 0:
+            n = I(r.get("matN"))  # fallback if present
+        # FLOPs ~ 2*n^3 for one multiply-accumulate per product
+        FLOPs = 2 * n * n * n
+        # BYTES pessimistic: read A,B,C once
+        BYTES = 4 * (n*n*3)
+        working_set_bytes = BYTES
+        mem_pattern = "mm_naive"
 
-for r in rd:
-    k     = r["kernel"]
-    rows  = I(r.get("rows",""))
-    cols  = I(r.get("cols",""))
-    block = I(r.get("block","") or r.get("block_x",""))
-    iters = I(r.get("iters",""))
+    elif k == "matmul_tiled":
+        n = R if R>0 else cols if cols>0 else 0
+        if n == 0:
+            n = I(r.get("matN"))
+        FLOPs = 2 * n * n * n
+        BYTES = 4 * (n*n*3)          # still count gross global traffic
+        # per-block shared memory is dynamic shmem for tiles
+        shared_bytes = I(r.get("shmem"))
+        working_set_bytes = BYTES
+        mem_pattern = "mm_tiled"
 
-    fl, by, sb, mp, ws = counts_for_kernel(k, rows, cols, block, iters)
-    r["FLOPs"] = fl
-    r["BYTES"] = by
-    r["shared_bytes"] = sb
-    r["working_set_bytes"] = ws
-    r["mem_pattern"] = mp
-    r["arithmetic_intensity"] = (fl/float(by)) if by>0 else 0.0
-    w.writerow(r)
+    elif k == "conv2d_3x3":
+        # Assume SAME padding => output R*C, 9 MACs each => 18 FLOPs per output
+        if R>0 and C>0:
+            out_elems = R * C
+            FLOPs = out_elems * 18
+            # read input + write output (ignore filter reuse detail)
+            BYTES = (R*C*4) + (R*C*4)
+            working_set_bytes = BYTES  # input + output
+            mem_pattern = "stencil_3x3"
+            conv_padding = "same"
 
-print(f"[OK] wrote {outp}")
+    elif k == "conv2d_7x7":
+        if R>0 and C>0:
+            out_elems = R * C
+            FLOPs = out_elems * (2 * 7 * 7)  # 49 MACs => 98 FLOPs per output
+            BYTES = (R*C*4) + (R*C*4)
+            working_set_bytes = BYTES  # input + output
+            mem_pattern = "stencil_7x7"
+            conv_padding = "same"
+
+    elif k == "shared_bank_conflict":
+        # No global traffic; keep BYTES=0; SMEM per-block only
+        FLOPs = 0
+        BYTES = 0
+        shared_bytes = I(r.get("shmem"))   # per-block
+        working_set_bytes = shared_bytes
+        mem_pattern = "smem_bank_conflict"
+
+    return FLOPs, BYTES, shared_bytes, mem_pattern, working_set_bytes, conv_padding
+
+
+if __name__ == "__main__":
+    runs_in, runs_out = sys.argv[1], sys.argv[2]
+
+    rd = csv.DictReader(open(runs_in, newline=""))
+    # Build output header = input header + our fields (unique)
+    out_fields = list(rd.fieldnames) if rd.fieldnames else []
+
+    # Ensure we have normalized size columns in the header
+    first_missing_add(out_fields, "N")
+    first_missing_add(out_fields, "rows")
+    first_missing_add(out_fields, "cols")
+    first_missing_add(out_fields, "size_kind")
+
+    # Add static metrics
+    for extra in [
+        "FLOPs", "BYTES", "arithmetic_intensity",
+        "working_set_bytes", "shared_bytes", "mem_pattern",
+        "conv_padding"
+    ]:
+        first_missing_add(out_fields, extra)
+
+    w = csv.DictWriter(open(runs_out, "w", newline=""), fieldnames=out_fields)
+    w.writeheader()
+
+    for r in rd:
+        k = r.get("kernel", "")
+        size_kind, N, rows, cols = size_from_row(r)
+
+        FLOPs, BYTES, shared_bytes, mem_pattern, working_set_bytes, conv_padding = \
+            per_kernel_counts(k, r, size_kind, N, rows, cols)
+
+        # arithmetic intensity (handle 0 safely)
+        ai = (float(FLOPs) / float(BYTES)) if BYTES > 0 else 0.0
+
+        # Update row ONLY with fields declared in header
+        updates = {
+            "N": str(N),
+            "rows": str(rows),
+            "cols": str(cols),
+            "size_kind": size_kind,
+            "FLOPs": str(FLOPs),
+            "BYTES": str(BYTES),
+            "arithmetic_intensity": f"{ai:.6f}",
+            "working_set_bytes": str(working_set_bytes),
+            "shared_bytes": str(shared_bytes),
+            "mem_pattern": mem_pattern,
+            "conv_padding": conv_padding,
+        }
+        r.update({k:v for k,v in updates.items() if k in out_fields})
+        w.writerow(r)
 

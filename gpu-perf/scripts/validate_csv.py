@@ -1,65 +1,44 @@
 #!/usr/bin/env python3
-import csv, sys, re
+import sys, csv
 
-def I(x, d=0):
-    try:
-        if x is None or x == "": return d
-        return int(float(str(x).strip()))
-    except:
-        return d
+path = sys.argv[1]
+bad = 0
 
-def F(x, d=0.0):
-    try:
-        if x is None or x == "": return d
-        return float(str(x).strip())
-    except:
-        return d
+def I(x):
+    try: return int(float(x))
+    except: return 0
 
-def warn(msg):
-    print(msg)
+def F(x):
+    try: return float(x)
+    except: return 0.0
 
-def main():
-    if len(sys.argv) != 2:
-        print("usage: validate_csv.py <csv>", file=sys.stderr)
-        sys.exit(1)
-    path = sys.argv[1]
-    issues = 0
-    with open(path, newline='') as f:
-        rd = csv.DictReader(f)
-        need = ["kernel","args","regs","shmem","device_name",
-                "block_x","block_y","block_z","grid_x","grid_y","grid_z",
-                "warmup","reps","time_ms"]
-        miss = [c for c in need if c not in rd.fieldnames]
-        if miss:
-            warn(f"{path}: missing fields: {', '.join(miss)}")
-            issues += 1
-            print(f"[FAIL] {path} had {issues} issues")
-            return
+with open(path) as f:
+    rd = csv.DictReader(f)
+    fn = set(rd.fieldnames or [])
+    # minimal expectations for trials files
+    req = {"kernel","rows","cols","block_x","block_y","block_z","grid_x","grid_y","grid_z","time_ms"}
+    miss = sorted(list(req - fn))
+    if miss:
+        print(f"{path}: missing fields: {', '.join(miss)}")
+        bad += 1
 
-        for i,r in enumerate(rd, start=2):
-            k = r["kernel"]
-            # block flat vs reported "block" if present
-            bx,by,bz = I(r.get("block_x")), I(r.get("block_y")), I(r.get("block_z"))
-            calc_block = max(1,bx)*max(1,by)*max(1,bz)
-            if "block" in rd.fieldnames:
-                rb = I(r.get("block"))
-                if rb>0 and rb != calc_block:
-                    warn(f"[{path}:{i}] {k}: block mismatch flat={calc_block} vs {rb}")
+    for i, r in enumerate(rd, start=2):
+        k  = r.get("kernel","")
+        bx,by,bz = I(r.get("block_x")),I(r.get("block_y")),I(r.get("block_z"))
+        gx,gy,gz = I(r.get("grid_x")), I(r.get("grid_y")), I(r.get("grid_z"))
+        flat = bx*by*bz
+        if flat <= 0:
+            print(f"[{path}:{i}] {k}: block mismatch flat={flat} vs >0")
+            bad += 1
+        if gx<=0 or gy<=0 or gz<=0:
+            print(f"[{path}:{i}] {k}: suspicious grid ({gx},{gy},{gz})")
+            bad += 1
+        if F(r.get("time_ms",0.0)) <= 0:
+            print(f"[{path}:{i}] {k}: non-positive time_ms")
+            bad += 1
 
-            # size family presence
-            sizes = [I(r.get("N")), I(r.get("rows")), I(r.get("cols")), I(r.get("H")), I(r.get("W")), I(r.get("matN"))]
-            if sum(1 for v in sizes if v>0) == 0:
-                warn(f"[{path}:{i}] {k}: missing problem size family")
-                issues += 1
-
-            # zero/negative x/y/z are suspicious
-            gx,gy,gz = I(r.get("grid_x")), I(r.get("grid_y")), I(r.get("grid_z"))
-            if min(bx,by,bz,gx,gy,gz) <= 0:
-                warn(f"[{path}:{i}] {k}: suspicious block/grid: bx={bx} by={by} bz={bz} gx={gx} gy={gy} gz={gz}")
-                issues += 1
-
-    print(("[OK] " if issues==0 else "[WARN] ") + f"{path} checked with {issues} issue(s)")
-
-if __name__ == "__main__":
-    main()
+if bad==0:
+    print(f"[OK] {path} passed basic validation")
+else:
+    print(f"[FAIL] {path} had {bad} issues")
 
