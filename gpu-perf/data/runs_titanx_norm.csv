@@ -1,0 +1,61 @@
+kernel,args,regs,shmem,device_name,block_x,block_y,block_z,grid_x,grid_y,grid_z,warmup,reps,trials,mean_ms,std_ms,rows,cols,iters,block,grid_blocks,size_kind
+saxpy,--rows 65536 --cols 1 --block 256 --warmup 20 --reps 100,12,0,NVIDIA GeForce GTX TITAN X,256,1,1,256,1,1,20,100,10,0.050901,0.000048,65536,1,0,256,256,rows_cols
+saxpy,--rows 262144 --cols 1 --block 256 --warmup 20 --reps 100,12,0,NVIDIA GeForce GTX TITAN X,256,1,1,1024,1,1,20,100,10,0.050900,0.000039,262144,1,0,256,1024,rows_cols
+saxpy,--rows 1048576 --cols 1 --block 256 --warmup 20 --reps 100,12,0,NVIDIA GeForce GTX TITAN X,256,1,1,4096,1,1,20,100,10,0.051077,0.000122,1048576,1,0,256,4096,rows_cols
+saxpy,--rows 4194304 --cols 1 --block 256 --warmup 20 --reps 100,12,0,NVIDIA GeForce GTX TITAN X,256,1,1,16384,1,1,20,100,10,0.051189,0.000039,4194304,1,0,256,16384,rows_cols
+vector_add,--rows 65536 --cols 1 --block 256 --warmup 20 --reps 100,12,0,NVIDIA GeForce GTX TITAN X,256,1,1,256,1,1,20,100,10,0.050858,0.000046,65536,1,0,256,256,rows_cols
+vector_add,--rows 262144 --cols 1 --block 256 --warmup 20 --reps 100,12,0,NVIDIA GeForce GTX TITAN X,256,1,1,1024,1,1,20,100,10,0.050877,0.000043,262144,1,0,256,1024,rows_cols
+vector_add,--rows 1048576 --cols 1 --block 256 --warmup 20 --reps 100,12,0,NVIDIA GeForce GTX TITAN X,256,1,1,4096,1,1,20,100,10,0.050905,0.000025,1048576,1,0,256,4096,rows_cols
+vector_add,--rows 4194304 --cols 1 --block 256 --warmup 20 --reps 100,12,0,NVIDIA GeForce GTX TITAN X,256,1,1,16384,1,1,20,100,10,0.051178,0.000053,4194304,1,0,256,16384,rows_cols
+atomic_hotspot,--rows 1048576 --cols 1 --block 256 --iters 10 --warmup 10 --reps 50,7,0,NVIDIA GeForce GTX TITAN X,256,1,1,4096,1,1,10,50,40,2.591093,2.013121,1048576,1,10,256,4096,rows_cols
+vector_add_divergent,--rows 65536 --cols 1 --block 256 --warmup 20 --reps 100,15,0,NVIDIA GeForce GTX TITAN X,256,1,1,256,1,1,20,100,10,0.166635,0.000069,65536,1,0,256,256,rows_cols
+vector_add_divergent,--rows 262144 --cols 1 --block 256 --warmup 20 --reps 100,15,0,NVIDIA GeForce GTX TITAN X,256,1,1,1024,1,1,20,100,10,0.166626,0.000075,262144,1,0,256,1024,rows_cols
+vector_add_divergent,--rows 1048576 --cols 1 --block 256 --warmup 20 --reps 100,15,0,NVIDIA GeForce GTX TITAN X,256,1,1,4096,1,1,20,100,10,0.166638,0.000132,1048576,1,0,256,4096,rows_cols
+vector_add_divergent,--rows 4194304 --cols 1 --block 256 --warmup 20 --reps 100,15,0,NVIDIA GeForce GTX TITAN X,256,1,1,16384,1,1,20,100,10,0.166640,0.000084,4194304,1,0,256,16384,rows_cols
+naive_transpose,--rows 512 --cols 512 --warmup 20 --reps 100,8,0,NVIDIA GeForce GTX TITAN X,16,16,1,32,32,1,20,100,10,0.028022,0.000013,512,512,0,256,1024,rows_cols
+naive_transpose,--rows 1024 --cols 1024 --warmup 20 --reps 100,8,0,NVIDIA GeForce GTX TITAN X,16,16,1,64,64,1,20,100,10,0.105726,0.000027,1024,1024,0,256,4096,rows_cols
+naive_transpose,--rows 2048 --cols 2048 --warmup 20 --reps 100,8,0,NVIDIA GeForce GTX TITAN X,16,16,1,128,128,1,20,100,10,0.396715,0.000062,2048,2048,0,256,16384,rows_cols
+naive_transpose,--rows 4096 --cols 4096 --warmup 20 --reps 100,8,0,NVIDIA GeForce GTX TITAN X,16,16,1,256,256,1,20,100,10,1.526491,0.070366,4096,4096,0,256,65536,rows_cols
+random_access,--rows 65536 --cols 1 --block 256 --warmup 20 --reps 100,10,0,NVIDIA GeForce GTX TITAN X,256,1,1,256,1,1,20,100,10,0.036007,0.000036,65536,1,0,256,256,rows_cols
+random_access,--rows 262144 --cols 1 --block 256 --warmup 20 --reps 100,10,0,NVIDIA GeForce GTX TITAN X,256,1,1,1024,1,1,20,100,10,0.036032,0.000037,262144,1,0,256,1024,rows_cols
+random_access,--rows 1048576 --cols 1 --block 256 --warmup 20 --reps 100,10,0,NVIDIA GeForce GTX TITAN X,256,1,1,4096,1,1,20,100,10,0.036018,0.000051,1048576,1,0,256,4096,rows_cols
+random_access,--rows 4194304 --cols 1 --block 256 --warmup 20 --reps 100,10,0,NVIDIA GeForce GTX TITAN X,256,1,1,16384,1,1,20,100,10,0.036028,0.000043,4194304,1,0,256,16384,rows_cols
+histogram,--rows 65536 --cols 1 --block 256 --warmup 10 --reps 50,10,1024,NVIDIA GeForce GTX TITAN X,256,1,1,256,1,1,10,50,10,0.204566,0.000388,65536,1,0,256,256,rows_cols
+histogram,--rows 262144 --cols 1 --block 256 --warmup 10 --reps 50,10,1024,NVIDIA GeForce GTX TITAN X,256,1,1,1024,1,1,10,50,10,0.204587,0.000350,262144,1,0,256,1024,rows_cols
+histogram,--rows 1048576 --cols 1 --block 256 --warmup 10 --reps 50,10,1024,NVIDIA GeForce GTX TITAN X,256,1,1,4096,1,1,10,50,10,0.204392,0.000127,1048576,1,0,256,4096,rows_cols
+histogram,--rows 4194304 --cols 1 --block 256 --warmup 10 --reps 50,10,1024,NVIDIA GeForce GTX TITAN X,256,1,1,16384,1,1,10,50,10,0.204507,0.000285,4194304,1,0,256,16384,rows_cols
+conv2d_3x3,--rows 256 --cols 256 --warmup 10 --reps 50,30,0,NVIDIA GeForce GTX TITAN X,16,16,1,64,64,1,10,50,10,0.067199,0.000057,256,256,0,256,4096,rows_cols
+conv2d_3x3,--rows 512 --cols 512 --warmup 10 --reps 50,30,0,NVIDIA GeForce GTX TITAN X,16,16,1,64,64,1,10,50,10,0.067216,0.000029,512,512,0,256,4096,rows_cols
+conv2d_3x3,--rows 1024 --cols 1024 --warmup 10 --reps 50,30,0,NVIDIA GeForce GTX TITAN X,16,16,1,64,64,1,10,50,10,0.067220,0.000047,1024,1024,0,256,4096,rows_cols
+conv2d_3x3,--rows 2048 --cols 2048 --warmup 10 --reps 50,30,0,NVIDIA GeForce GTX TITAN X,16,16,1,64,64,1,10,50,10,0.067206,0.000040,2048,2048,0,256,4096,rows_cols
+dot_product,--rows 65536 --cols 1 --block 256 --warmup 20 --reps 100,15,1024,NVIDIA GeForce GTX TITAN X,256,1,1,256,1,1,20,100,10,0.045364,0.000210,65536,1,0,256,256,rows_cols
+dot_product,--rows 262144 --cols 1 --block 256 --warmup 20 --reps 100,15,1024,NVIDIA GeForce GTX TITAN X,256,1,1,1024,1,1,20,100,10,0.045649,0.000154,262144,1,0,256,1024,rows_cols
+dot_product,--rows 1048576 --cols 1 --block 256 --warmup 20 --reps 100,15,1024,NVIDIA GeForce GTX TITAN X,256,1,1,4096,1,1,20,100,10,0.045515,0.000159,1048576,1,0,256,4096,rows_cols
+dot_product,--rows 4194304 --cols 1 --block 256 --warmup 20 --reps 100,15,1024,NVIDIA GeForce GTX TITAN X,256,1,1,16384,1,1,20,100,10,0.045596,0.000221,4194304,1,0,256,16384,rows_cols
+shared_transpose,--rows 512 --cols 512 --warmup 20 --reps 100,10,4224,NVIDIA GeForce GTX TITAN X,32,32,1,16,16,1,20,100,10,0.008741,0.000035,512,512,0,1024,256,rows_cols
+shared_transpose,--rows 1024 --cols 1024 --warmup 20 --reps 100,10,4224,NVIDIA GeForce GTX TITAN X,32,32,1,32,32,1,20,100,10,0.039154,0.000138,1024,1024,0,1024,1024,rows_cols
+shared_transpose,--rows 2048 --cols 2048 --warmup 20 --reps 100,10,4224,NVIDIA GeForce GTX TITAN X,32,32,1,64,64,1,20,100,10,0.145273,0.000330,2048,2048,0,1024,4096,rows_cols
+shared_transpose,--rows 4096 --cols 4096 --warmup 20 --reps 100,10,4224,NVIDIA GeForce GTX TITAN X,32,32,1,128,128,1,20,100,10,0.560757,0.000225,4096,4096,0,1024,16384,rows_cols
+shared_bank_conflict,--rows 1 --cols 1 --warmup 20 --reps 100,206,4096,NVIDIA GeForce GTX TITAN X,1024,1,1,1,1,1,20,100,10,0.001362,0.000059,1,1,0,1024,1,rows_cols
+strided_copy_8,--rows 65536 --cols 1 --block 256 --warmup 20 --reps 100,8,0,NVIDIA GeForce GTX TITAN X,256,1,1,256,1,1,20,100,10,0.036590,0.000040,65536,1,0,256,256,rows_cols
+strided_copy_8,--rows 262144 --cols 1 --block 256 --warmup 20 --reps 100,8,0,NVIDIA GeForce GTX TITAN X,256,1,1,1024,1,1,20,100,10,0.036574,0.000026,262144,1,0,256,1024,rows_cols
+strided_copy_8,--rows 1048576 --cols 1 --block 256 --warmup 20 --reps 100,8,0,NVIDIA GeForce GTX TITAN X,256,1,1,4096,1,1,20,100,10,0.036573,0.000022,1048576,1,0,256,4096,rows_cols
+strided_copy_8,--rows 4194304 --cols 1 --block 256 --warmup 20 --reps 100,8,0,NVIDIA GeForce GTX TITAN X,256,1,1,16384,1,1,20,100,10,0.036593,0.000024,4194304,1,0,256,16384,rows_cols
+reduce_sum,--rows 65536 --cols 1 --block 256 --warmup 20 --reps 100,10,1024,NVIDIA GeForce GTX TITAN X,256,1,1,256,1,1,20,100,10,0.037693,0.000098,65536,1,0,256,256,rows_cols
+reduce_sum,--rows 262144 --cols 1 --block 256 --warmup 20 --reps 100,10,1024,NVIDIA GeForce GTX TITAN X,256,1,1,1024,1,1,20,100,10,0.037800,0.000009,262144,1,0,256,1024,rows_cols
+reduce_sum,--rows 1048576 --cols 1 --block 256 --warmup 20 --reps 100,10,1024,NVIDIA GeForce GTX TITAN X,256,1,1,4096,1,1,20,100,10,0.037699,0.000104,1048576,1,0,256,4096,rows_cols
+reduce_sum,--rows 4194304 --cols 1 --block 256 --warmup 20 --reps 100,10,1024,NVIDIA GeForce GTX TITAN X,256,1,1,16384,1,1,20,100,10,0.037746,0.000068,4194304,1,0,256,16384,rows_cols
+conv2d_7x7,--rows 256 --cols 256 --warmup 10 --reps 50,40,0,NVIDIA GeForce GTX TITAN X,16,16,1,64,64,1,10,50,10,0.267757,0.000051,256,256,0,256,4096,rows_cols
+conv2d_7x7,--rows 512 --cols 512 --warmup 10 --reps 50,40,0,NVIDIA GeForce GTX TITAN X,16,16,1,64,64,1,10,50,10,0.267814,0.000051,512,512,0,256,4096,rows_cols
+conv2d_7x7,--rows 1024 --cols 1024 --warmup 10 --reps 50,40,0,NVIDIA GeForce GTX TITAN X,16,16,1,64,64,1,10,50,10,0.267814,0.000029,1024,1024,0,256,4096,rows_cols
+conv2d_7x7,--rows 2048 --cols 2048 --warmup 10 --reps 50,40,0,NVIDIA GeForce GTX TITAN X,16,16,1,64,64,1,10,50,10,0.267808,0.000044,2048,2048,0,256,4096,rows_cols
+matmul_naive,--rows 128 --cols 128 --warmup 10 --reps 50,40,0,NVIDIA GeForce GTX TITAN X,16,16,1,32,32,1,10,50,10,0.574897,0.000357,128,128,0,256,1024,rows_cols
+matmul_naive,--rows 256 --cols 256 --warmup 10 --reps 50,40,0,NVIDIA GeForce GTX TITAN X,16,16,1,32,32,1,10,50,10,0.667630,0.000475,256,256,0,256,1024,rows_cols
+matmul_naive,--rows 512 --cols 512 --warmup 10 --reps 50,40,0,NVIDIA GeForce GTX TITAN X,16,16,1,32,32,1,10,50,10,0.666912,0.000693,512,512,0,256,1024,rows_cols
+matmul_naive,--rows 1024 --cols 1024 --warmup 10 --reps 50,40,0,NVIDIA GeForce GTX TITAN X,16,16,1,32,32,1,10,50,10,0.666831,0.000686,1024,1024,0,256,1024,rows_cols
+matmul_naive,--rows 2048 --cols 2048 --warmup 10 --reps 50,40,0,NVIDIA GeForce GTX TITAN X,16,16,1,32,32,1,10,50,10,0.666934,0.000521,2048,2048,0,256,1024,rows_cols
+matmul_tiled,--rows 128 --cols 128 --warmup 10 --reps 50,37,8192,NVIDIA GeForce GTX TITAN X,32,32,1,16,16,1,10,50,10,0.269027,0.000145,128,128,0,1024,256,rows_cols
+matmul_tiled,--rows 256 --cols 256 --warmup 10 --reps 50,37,8192,NVIDIA GeForce GTX TITAN X,32,32,1,16,16,1,10,50,10,0.269090,0.000095,256,256,0,1024,256,rows_cols
+matmul_tiled,--rows 512 --cols 512 --warmup 10 --reps 50,37,8192,NVIDIA GeForce GTX TITAN X,32,32,1,16,16,1,10,50,10,0.311206,0.000164,512,512,0,1024,256,rows_cols
+matmul_tiled,--rows 1024 --cols 1024 --warmup 10 --reps 50,37,8192,NVIDIA GeForce GTX TITAN X,32,32,1,16,16,1,10,50,10,0.311291,0.000121,1024,1024,0,1024,256,rows_cols
+matmul_tiled,--rows 2048 --cols 2048 --warmup 10 --reps 50,37,8192,NVIDIA GeForce GTX TITAN X,32,32,1,16,16,1,10,50,10,0.311182,0.000121,2048,2048,0,1024,256,rows_cols

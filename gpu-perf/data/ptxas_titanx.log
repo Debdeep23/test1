@@ -1,0 +1,71 @@
+runner/../kernels/atomic_hotspot.cuh(4): warning #177-D: variable "tid" was declared but never referenced
+    int tid = blockIdx.x*blockDim.x + threadIdx.x;
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_Z21atomic_hotspot_kernelPji' for 'sm_52'
+ptxas info    : Function properties for _Z21atomic_hotspot_kernelPji
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 9 registers, used 0 barriers, 332 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z19matmul_naive_kernelPKfS0_Pfi' for 'sm_52'
+ptxas info    : Function properties for _Z19matmul_naive_kernelPKfS0_Pfi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, used 0 barriers, 348 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z27shared_bank_conflict_kernelPf' for 'sm_52'
+ptxas info    : Function properties for _Z27shared_bank_conflict_kernelPf
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 200 registers, used 1 barriers, 4096 bytes smem, 328 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z27vector_add_divergent_kernelPKfS0_Pfi' for 'sm_52'
+ptxas info    : Function properties for _Z27vector_add_divergent_kernelPKfS0_Pfi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 15 registers, used 0 barriers, 348 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z20random_access_kernelPKfPKiPfi' for 'sm_52'
+ptxas info    : Function properties for _Z20random_access_kernelPKfPKiPfi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 8 registers, used 0 barriers, 348 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z23shared_transpose_kernelPKfPfii' for 'sm_52'
+ptxas info    : Function properties for _Z23shared_transpose_kernelPKfPfii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 8 registers, used 1 barriers, 4224 bytes smem, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z17conv2d_7x7_kernelPKfS0_Pfii' for 'sm_52'
+ptxas info    : Function properties for _Z17conv2d_7x7_kernelPKfS0_Pfii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, used 0 barriers, 352 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z17conv2d_3x3_kernelPKfS0_Pfii' for 'sm_52'
+ptxas info    : Function properties for _Z17conv2d_3x3_kernelPKfS0_Pfii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 29 registers, used 0 barriers, 352 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z16histogram_kernelPKjiPj' for 'sm_52'
+ptxas info    : Function properties for _Z16histogram_kernelPKjiPj
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 10 registers, used 1 barriers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z18dot_product_kernelPKfS0_Pfi' for 'sm_52'
+ptxas info    : Function properties for _Z18dot_product_kernelPKfS0_Pfi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, used 1 barriers, 348 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z17reduce_sum_kernelPKfPfi' for 'sm_52'
+ptxas info    : Function properties for _Z17reduce_sum_kernelPKfPfi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 11 registers, used 1 barriers, 340 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z19matmul_tiled_kernelPKfS0_Pfi' for 'sm_52'
+ptxas info    : Function properties for _Z19matmul_tiled_kernelPKfS0_Pfi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 27 registers, used 1 barriers, 8192 bytes smem, 348 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z22naive_transpose_kernelPKfPfii' for 'sm_52'
+ptxas info    : Function properties for _Z22naive_transpose_kernelPKfPfii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 7 registers, used 0 barriers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z21strided_copy_8_kernelPKfPfi' for 'sm_52'
+ptxas info    : Function properties for _Z21strided_copy_8_kernelPKfPfi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 6 registers, used 0 barriers, 340 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z12saxpy_kernelfPKfS0_Pfi' for 'sm_52'
+ptxas info    : Function properties for _Z12saxpy_kernelfPKfS0_Pfi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 8 registers, used 0 barriers, 356 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z17vector_add_kernelPKfS0_Pfi' for 'sm_52'
+ptxas info    : Function properties for _Z17vector_add_kernelPKfS0_Pfi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 8 registers, used 0 barriers, 348 bytes cmem[0]
