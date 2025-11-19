@@ -1,0 +1,7 @@
+kernel,config_id,src_gpu,tgt_gpu,T_src_ms,T_tgt_true_ms,T_tgt_pred_ms,ratio_pred_over_true,abs_rel_error,config_role
+shared_transpose,shared_transpose|N=0|rows=512|cols=512|block=1024|iters=0,NVIDIA GeForce RTX 4070,NVIDIA TITAN V,0.008164,0.003906,0.003988790206044707,1.0211956492689982,0.021195649268998213,baseline
+shared_transpose,shared_transpose|N=0|rows=512|cols=512|block=1024|iters=0,NVIDIA GeForce RTX 4070,NVIDIA GeForce GTX TITAN X,0.008164,0.008741,0.009487045769475752,1.0853501623928328,0.08535016239283276,baseline
+shared_transpose,shared_transpose|N=0|rows=512|cols=512|block=1024|iters=0,NVIDIA TITAN V,NVIDIA GeForce RTX 4070,0.003906,0.008164,0.007994550315450356,0.9792442816573196,0.02075571834268043,baseline
+shared_transpose,shared_transpose|N=0|rows=512|cols=512|block=1024|iters=0,NVIDIA TITAN V,NVIDIA GeForce GTX TITAN X,0.003906,0.008741,0.009290135319580391,1.0628229401190243,0.06282294011902423,baseline
+shared_transpose,shared_transpose|N=0|rows=512|cols=512|block=1024|iters=0,NVIDIA GeForce GTX TITAN X,NVIDIA GeForce RTX 4070,0.008741,0.008164,0.0075219963868629475,0.9213616348435753,0.07863836515642479,baseline
+shared_transpose,shared_transpose|N=0|rows=512|cols=512|block=1024|iters=0,NVIDIA GeForce GTX TITAN X,NVIDIA TITAN V,0.008741,0.003906,0.0036751182652893922,0.9408904929056303,0.05910950709436967,baseline

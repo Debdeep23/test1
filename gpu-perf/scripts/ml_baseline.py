@@ -21,12 +21,13 @@ except ImportError:
 # ============================================================
 
 KERNEL_CSVS = [
-    "runs_2080ti_final.csv",
-    "runs_4070_final.csv",
-    "runs_titanv_final.csv",
+    "../data/runs_2080ti_final.csv",
+    "../data/runs_4070_final.csv",
+    "../data/runs_titanv_final.csv",
+    "../data/runs_titanx_final.csv",
 ]
 
-GPU_JSON = "gpu_metrics.json"
+GPU_JSON = "../data/gpu_metrics.json"
 
 REF_GPU_NAME = "NVIDIA GeForce RTX 4070"
 TEST_GPU_NAME = "NVIDIA TITAN V"
