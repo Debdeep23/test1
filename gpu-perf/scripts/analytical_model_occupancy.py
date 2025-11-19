@@ -292,14 +292,13 @@ def compute_config_roles(df_with_cfg: pd.DataFrame) -> pd.DataFrame:
             elif n == 2:
                 role = "baseline" if idx == 0 else "test_extra"
             else:
+                # Use ALL intermediate sizes for training
                 if idx == 0:
                     role = "baseline"
-                elif idx == 1:
-                    role = "train_extra"
                 elif idx == n - 1:
                     role = "test_extra"
                 else:
-                    role = "other"
+                    role = "train_extra"  # ALL middle configs
             roles.append(
                 {
                     "kernel": kernel,
