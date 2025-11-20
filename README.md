@@ -92,22 +92,13 @@ This will automatically run both steps below and output `data/runs_2080ti_final.
 
 **Option B: Manual Two-Step Process (All GPUs)**
 
-For **any GPU** (RTX 2080 Ti, RTX 4070, Titan V, or Titan X), run the two-step process:
+For **any GPU** (RTX 2080 Ti, RTX 4070, Titan V, or Titan X), run the two-step process.
 
+**For RTX 2080 Ti:**
 ```bash
 cd gpu-perf
+./scripts/gen_trials_2080ti.sh
 
-# Step 2a: Generate trial data (choose your GPU)
-./scripts/gen_trials_2080ti.sh   # For RTX 2080 Ti
-# OR
-./scripts/gen_trials_4070.sh     # For RTX 4070
-# OR
-./scripts/gen_trials_titanv.sh   # For Titan V
-# OR
-./scripts/gen_trials_titanx.sh   # For Titan X
-
-# Step 2b: Process trials into final dataset
-# Replace "2080ti" with your GPU: 4070, titanv, or titanx
 python3 scripts/build_final_dataset.py \
   "data/trials_*__2080ti.csv" \
   data/props_2080ti.out \
@@ -116,7 +107,46 @@ python3 scripts/build_final_dataset.py \
   data/runs_2080ti_final.csv
 ```
 
-Both approaches will:
+**For RTX 4070:**
+```bash
+cd gpu-perf
+./scripts/gen_trials_4070.sh
+
+python3 scripts/build_final_dataset.py \
+  "data/trials_*__4070.csv" \
+  data/props_4070.out \
+  data/stream_like_4070.out \
+  data/gemm_cublas_4070.out \
+  data/runs_4070_final.csv
+```
+
+**For Titan V:**
+```bash
+cd gpu-perf
+./scripts/gen_trials_titanv.sh
+
+python3 scripts/build_final_dataset.py \
+  "data/trials_*__titanv.csv" \
+  data/props_titanv.out \
+  data/stream_like_titanv.out \
+  data/gemm_cublas_titanv.out \
+  data/runs_titanv_final.csv
+```
+
+**For Titan X:**
+```bash
+cd gpu-perf
+./scripts/gen_trials_titanx.sh
+
+python3 scripts/build_final_dataset.py \
+  "data/trials_*__titanx.csv" \
+  data/props_titanx.out \
+  data/stream_like_titanx.out \
+  data/gemm_cublas_titanx.out \
+  data/runs_titanx_final.csv
+```
+
+Each pipeline will:
 1. Build the CUDA runner binary for the specific GPU architecture
 2. Execute 16 kernels × 4 problem sizes = ~65 configurations
 3. Run 10 trials per configuration with warmup
