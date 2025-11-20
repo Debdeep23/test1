@@ -12,12 +12,13 @@ import numpy as np
 # ============================================================
 
 KERNEL_CSVS = [
-    "runs_2080ti_final.csv",
-    "runs_4070_final.csv",
-    "runs_titanv_final.csv",
+    "../data/runs_2080ti_final.csv",
+    "../data/runs_4070_final.csv",
+    "../data/runs_titanv_final.csv",
+    "../data/runs_titanx_final.csv",
 ]
 
-GPU_JSON = "gpu_metrics.json"
+GPU_JSON = "../data/gpu_metrics.json"
 
 # GPU we treat as "new / held-out" for Exp-1
 TEST_GPU_NAME = "NVIDIA TITAN V"
@@ -291,14 +292,13 @@ def compute_config_roles(df_with_cfg: pd.DataFrame) -> pd.DataFrame:
             elif n == 2:
                 role = "baseline" if idx == 0 else "test_extra"
             else:
+                # Use ALL intermediate sizes for training
                 if idx == 0:
                     role = "baseline"
-                elif idx == 1:
-                    role = "train_extra"
                 elif idx == n - 1:
                     role = "test_extra"
                 else:
-                    role = "other"
+                    role = "train_extra"  # ALL middle configs
             roles.append(
                 {
                     "kernel": kernel,

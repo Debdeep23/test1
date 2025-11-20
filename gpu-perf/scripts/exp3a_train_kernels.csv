@@ -1,0 +1,13 @@
+kernel,config_id,src_gpu,tgt_gpu,T_src_ms,T_tgt_true_ms,T_tgt_pred_ms,ratio_pred_over_true,abs_rel_error,config_role
+naive_transpose,naive_transpose|N=0|rows=512|cols=512|block=256|iters=0,NVIDIA GeForce RTX 4070,NVIDIA TITAN V,0.009424,0.010087,0.0069066068535825545,0.6847037626234316,0.3152962373765684,baseline
+naive_transpose,naive_transpose|N=0|rows=512|cols=512|block=256|iters=0,NVIDIA GeForce RTX 4070,NVIDIA GeForce GTX TITAN X,0.009424,0.028022,0.016426859259836994,0.5862129491055954,0.4137870508944046,baseline
+naive_transpose,naive_transpose|N=0|rows=512|cols=512|block=256|iters=0,NVIDIA TITAN V,NVIDIA GeForce RTX 4070,0.010087,0.009424,0.013763616492907959,1.4604856210640873,0.46048562106408725,baseline
+naive_transpose,naive_transpose|N=0|rows=512|cols=512|block=256|iters=0,NVIDIA TITAN V,NVIDIA GeForce GTX TITAN X,0.010087,0.028022,0.023991191748235385,0.8561555830502957,0.14384441694970426,baseline
+naive_transpose,naive_transpose|N=0|rows=512|cols=512|block=256|iters=0,NVIDIA GeForce GTX TITAN X,NVIDIA GeForce RTX 4070,0.028022,0.009424,0.016076069309588794,1.705864739981833,0.705864739981833,baseline
+naive_transpose,naive_transpose|N=0|rows=512|cols=512|block=256|iters=0,NVIDIA GeForce GTX TITAN X,NVIDIA TITAN V,0.028022,0.010087,0.01178173710444335,1.1680120059922028,0.1680120059922028,baseline
+shared_bank_conflict,shared_bank_conflict|N=0|rows=0|cols=0|block=1024|iters=0,NVIDIA GeForce RTX 2080 Ti,NVIDIA GeForce RTX 4070,0.000136,0.004916,,,,baseline
+shared_bank_conflict,shared_bank_conflict|N=0|rows=0|cols=0|block=1024|iters=0,NVIDIA GeForce RTX 2080 Ti,NVIDIA TITAN V,0.000136,0.001354,,,,baseline
+shared_bank_conflict,shared_bank_conflict|N=0|rows=0|cols=0|block=1024|iters=0,NVIDIA GeForce RTX 4070,NVIDIA GeForce RTX 2080 Ti,0.004916,0.000136,,,,baseline
+shared_bank_conflict,shared_bank_conflict|N=0|rows=0|cols=0|block=1024|iters=0,NVIDIA GeForce RTX 4070,NVIDIA TITAN V,0.004916,0.001354,,,,baseline
+shared_bank_conflict,shared_bank_conflict|N=0|rows=0|cols=0|block=1024|iters=0,NVIDIA TITAN V,NVIDIA GeForce RTX 2080 Ti,0.001354,0.000136,,,,baseline
+shared_bank_conflict,shared_bank_conflict|N=0|rows=0|cols=0|block=1024|iters=0,NVIDIA TITAN V,NVIDIA GeForce RTX 4070,0.001354,0.004916,,,,baseline
