@@ -79,20 +79,7 @@ Calibration outputs:
 
 ### Step 2: Generate Dataset
 
-**Option A: Automated Pipeline (RTX 2080 Ti Only)**
-
-For RTX 2080 Ti, use the automated script:
-
-```bash
-cd gpu-perf
-./scripts/generate_dataset_full.sh
-```
-
-This will automatically run both steps below and output `data/runs_2080ti_final.csv`.
-
-**Option B: Manual Two-Step Process (All GPUs)**
-
-For **any GPU** (RTX 2080 Ti, RTX 4070, Titan V, or Titan X), run the two-step process.
+For **any GPU** (RTX 2080 Ti, RTX 4070, Titan V, or Titan X), run the two-step process:
 
 **For RTX 2080 Ti:**
 ```bash
