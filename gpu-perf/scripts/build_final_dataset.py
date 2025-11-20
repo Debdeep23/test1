@@ -17,6 +17,11 @@ GPU_SPECS = {
         "peak_gflops_fp32": 29770,
         "peak_bandwidth_gbps": 760,
     },
+    "NVIDIA GeForce RTX 4070": {
+        "architecture": "Ada Lovelace",
+        "peak_gflops_fp32": 29200,
+        "peak_bandwidth_gbps": 504,
+    },
     "NVIDIA GeForce RTX 4090": {
         "architecture": "Ada Lovelace",
         "peak_gflops_fp32": 82580,
